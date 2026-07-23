@@ -12,7 +12,7 @@ Thanks for helping improve Manifest BKBS Converter.
 ## Development setup (Python edition)
 
 ```bash
-git clone https://github.com/<owner>/bkbs-converter.git
+git clone https://github.com/brandonjoubert/Manifest---BKBS-Converter.git
 cd bkbs-converter
 ./installers/local/install.sh
 source .venv/bin/activate

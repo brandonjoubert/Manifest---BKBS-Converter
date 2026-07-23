@@ -44,7 +44,7 @@ Also: plain-text quick card **[INSTALL.txt](./INSTALL.txt)**
 ## Quick start (Python, local)
 
 ```bash
-git clone https://github.com/OWNER/bkbs-converter.git
+git clone https://github.com/brandonjoubert/Manifest---BKBS-Converter.git
 cd bkbs-converter
 ./installers/local/install.sh
 source .venv/bin/activate
