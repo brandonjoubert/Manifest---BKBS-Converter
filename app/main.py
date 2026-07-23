@@ -1,4 +1,4 @@
-"""BKBS Converter — FastAPI application."""
+"""Manifest BKBS Converter — FastAPI application."""
 
 from __future__ import annotations
 
@@ -44,8 +44,8 @@ from app.services.site_ops import delete_site_and_data
 APP_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(
-    title="BKBS Converter",
-    description="Scan websites and convert them to Business Knowledge Base Standard packages.",
+    title="Manifest BKBS Converter",
+    description="Manifest BKBS Converter — scan websites into Business Knowledge Base Standard packages for AI agents.",
     version="1.0.0",
 )
 

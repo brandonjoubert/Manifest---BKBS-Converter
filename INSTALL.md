@@ -1,6 +1,6 @@
-# BKBS Converter — Complete Installation Instructions
+# Manifest BKBS Converter — Complete Installation Instructions
 
-This guide walks you through installing and running **BKBS Converter** so you can scan a website, verify business knowledge, and publish agent-ready files (`llms.txt`, `graph.json`, schema.org JSON-LD, and more).
+This guide walks you through installing and running **Manifest BKBS Converter** so you can scan a website, verify business knowledge, and publish agent-ready files (`llms.txt`, `graph.json`, schema.org JSON-LD, and more).
 
 There are **three supported deployment paths**. Choose **one** based on where you want the application to run.
 
@@ -25,7 +25,7 @@ There are **three supported deployment paths**. Choose **one** based on where yo
 
 ## 1. What you are installing
 
-**BKBS Converter** turns a normal business website into a dual-purpose presence:
+**Manifest BKBS Converter** turns a normal business website into a dual-purpose presence:
 
 - Humans still browse your HTML site.  
 - AI agents can read structured files you publish (for example `/llms.txt` and `/graph.json`).
@@ -115,7 +115,7 @@ If you are unsure whether your host has Python: look in cPanel for **“Setup Py
 
 ## 4. Path A — Install on your own PC
 
-Use this to run BKBS Converter on **your computer**. You can scan public websites and either export a ZIP or publish into a local folder.
+Use this to run Manifest BKBS Converter on **your computer**. You can scan public websites and either export a ZIP or publish into a local folder.
 
 ### A.1 Get the software
 
@@ -314,7 +314,7 @@ mkdir -p ~/bkbs-converter/data/exports ~/bkbs-converter/data/live
 
 1. In **Setup Python App**, click **Restart**.  
 2. Open the application URL shown by cPanel (e.g. `https://bkbs.yourdomain.com`).  
-3. You should see the BKBS Converter dashboard.
+3. You should see the Manifest BKBS Converter dashboard.
 
 #### Step 6 — Configure live publish
 
@@ -371,7 +371,7 @@ Create `/etc/systemd/system/bkbs-converter.service`:
 
 ```ini
 [Unit]
-Description=BKBS Converter
+Description=Manifest BKBS Converter
 After=network.target
 
 [Service]
@@ -527,7 +527,7 @@ https://yourdomain.com/bkbs/install.php
 
 | Field | Example | Meaning |
 |-------|---------|---------|
-| Application name | BKBS Converter (PHP) | Label only |
+| Application name | Manifest BKBS Converter (PHP) | Label only |
 | Default web root | `/home/USERNAME/public_html` | Folder of the **main website**, not the `bkbs` folder |
 
 How to find the real path: cPanel File Manager often shows the full path at the top; it looks like `/home/youruser/public_html`.

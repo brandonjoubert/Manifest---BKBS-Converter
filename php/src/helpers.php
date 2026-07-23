@@ -59,7 +59,7 @@ function render(string $template, array $vars = []): void
     extract($vars, EXTR_SKIP);
     $flash = flash_get();
     $cfg = bkbs_config();
-    $appName = $cfg['app_name'] ?? 'BKBS Converter (PHP)';
+    $appName = $cfg['app_name'] ?? 'Manifest BKBS Converter (PHP)';
     require $root . '/templates/layout_header.php';
     require $root . '/templates/' . $template . '.php';
     require $root . '/templates/layout_footer.php';

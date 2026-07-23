@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# BKBS Converter — Local PC installer (Python edition)
+# Manifest BKBS Converter — Local PC installer (Python edition)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
-echo "=== BKBS Converter · Local PC install (Python) ==="
+echo "=== Manifest BKBS Converter · Local PC install (Python) ==="
 echo "Install path: $ROOT"
 echo
 

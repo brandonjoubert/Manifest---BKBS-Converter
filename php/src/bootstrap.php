@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * BKBS Converter — PHP edition bootstrap (shared hosting, no Python).
+ * Manifest BKBS Converter — PHP edition bootstrap (shared hosting, no Python).
  */
 
 const BKBS_PHP_VERSION = '1.0.0';

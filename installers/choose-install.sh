@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 echo "=============================================="
-echo "  BKBS Converter — choose install path"
+echo "  Manifest BKBS Converter — choose install path"
 echo "=============================================="
 echo
 echo "  1) Local PC (Python)     — develop / run on your computer"

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * BKBS Converter — PHP edition front controller.
+ * Manifest BKBS Converter — PHP edition front controller.
  * Upload this whole `php/` folder to shared hosting (no Python required).
  */
 

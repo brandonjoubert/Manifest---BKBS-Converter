@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title><?= h($appName ?? 'BKBS Converter') ?></title>
+  <title><?= h($appName ?? 'Manifest BKBS Converter') ?></title>
   <style>
     :root { --bg:#0f1419; --card:#1e2a3a; --border:#2d3a4d; --text:#e7ecf3; --muted:#9aa8bc; --accent:#3b9eff; --ok:#3dd68c; --err:#f31260; --warn:#f5a524; }
     * { box-sizing: border-box; }
@@ -50,7 +50,7 @@
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="<?= h(url('home')) ?>">BKBS <span>PHP</span></a>
+    <a class="brand" href="<?= h(url('home')) ?>">Manifest <span>BKBS PHP</span></a>
     <nav style="display:flex;gap:1rem;align-items:center;font-size:.9rem">
       <a href="<?= h(url('home')) ?>">Sites</a>
       <a href="<?= h(url('settings')) ?>">Settings</a>

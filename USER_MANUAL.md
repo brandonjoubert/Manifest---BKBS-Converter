@@ -1,4 +1,4 @@
-# BKBS Converter — User Manual
+# Manifest BKBS Converter — User Manual
 
 **Version:** 1.0  
 **Audience:** Business owners, marketing/ops staff, and web managers who want their website to work for both people *and* AI agents.
@@ -17,7 +17,7 @@ AI agents (chatbots, research tools, shopping agents, procurement bots) usually 
 - What facilities you serve  
 - Policies, warranties, and certifications  
 
-**BKBS Converter** turns your existing website into a **Business Knowledge Base** — a structured, verifiable set of facts that AI systems can read reliably, while your normal human website stays as it is.
+**Manifest BKBS Converter** turns your existing website into a **Business Knowledge Base** — a structured, verifiable set of facts that AI systems can read reliably, while your normal human website stays as it is.
 
 Think of it as:
 
@@ -129,7 +129,7 @@ You do not need every type on day one. Start with **Identity**, **Capabilities**
 
 ### 5.1 Start the application
 
-On the machine where BKBS Converter is installed:
+On the machine where Manifest BKBS Converter is installed:
 
 ```bash
 cd /home/brandon/bkbs-converter
@@ -486,4 +486,4 @@ Data is stored in the app’s local database (`data/` folder) on the machine run
 
 ---
 
-*BKBS Converter treats your business as a living, queryable knowledge graph — not just a collection of web pages. You remain the editor-in-chief of every fact agents are allowed to trust.*
+*Manifest BKBS Converter treats your business as a living, queryable knowledge graph — not just a collection of web pages. You remain the editor-in-chief of every fact agents are allowed to trust.*

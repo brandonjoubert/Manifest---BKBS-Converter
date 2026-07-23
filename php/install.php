@@ -26,7 +26,7 @@ if (is_file($configPath)) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $publish = trim($_POST['default_publish_root'] ?? '');
-    $appName = trim($_POST['app_name'] ?? 'BKBS Converter (PHP)');
+    $appName = trim($_POST['app_name'] ?? 'Manifest BKBS Converter (PHP)');
 
     if (!is_dir($dataDir) && !@mkdir($dataDir, 0755, true)) {
         $errors[] = "Cannot create data directory: $dataDir (check permissions)";
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dbPath = $dataDir . '/bkbs.sqlite';
         $export = [
             'installed' => true,
-            'app_name' => $appName !== '' ? $appName : 'BKBS Converter (PHP)',
+            'app_name' => $appName !== '' ? $appName : 'Manifest BKBS Converter (PHP)',
             'db_path' => $dbPath,
             'default_publish_root' => $publish,
             'installed_at' => gmdate('c'),
@@ -94,7 +94,7 @@ if ($suggest === '') {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Install BKBS Converter (PHP)</title>
+  <title>Install Manifest BKBS Converter (PHP)</title>
   <style>
     body { font-family: system-ui, sans-serif; background: #0f1419; color: #e7ecf3; margin: 0; padding: 2rem; }
     .box { max-width: 560px; margin: 0 auto; background: #1e2a3a; border: 1px solid #2d3a4d; border-radius: 12px; padding: 1.5rem; }
@@ -111,7 +111,7 @@ if ($suggest === '') {
 </head>
 <body>
   <div class="box">
-    <h1>Install BKBS Converter (PHP edition)</h1>
+    <h1>Install Manifest BKBS Converter (PHP edition)</h1>
     <p class="muted">No Python required. For shared hosting (cPanel, Plesk, etc.).</p>
 
     <?php if ($done): ?>
@@ -132,7 +132,7 @@ if ($suggest === '') {
 
       <form method="post">
         <label>Application name</label>
-        <input name="app_name" value="BKBS Converter (PHP)" />
+        <input name="app_name" value="Manifest BKBS Converter (PHP)" />
 
         <label>Default web root (where llms.txt is published)</label>
         <input id="default_publish_root" name="default_publish_root" value="<?= hinst($suggest) ?>"

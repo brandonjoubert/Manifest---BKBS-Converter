@@ -1,6 +1,6 @@
-# Contributing to BKBS Converter
+# Contributing to Manifest BKBS Converter
 
-Thanks for helping improve BKBS Converter.
+Thanks for helping improve Manifest BKBS Converter.
 
 ## Ways to contribute
 

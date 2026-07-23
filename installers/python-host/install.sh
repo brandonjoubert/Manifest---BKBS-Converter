@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# BKBS Converter — installer for Python-enabled hosting (VPS / cPanel Python App)
+# Manifest BKBS Converter — installer for Python-enabled hosting (VPS / cPanel Python App)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
-echo "=== BKBS Converter · Python host install ==="
+echo "=== Manifest BKBS Converter · Python host install ==="
 echo "App root: $ROOT"
 echo
 

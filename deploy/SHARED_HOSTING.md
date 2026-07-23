@@ -1,4 +1,4 @@
-# Deploy BKBS Converter on a shared host (auto-publish to public web root)
+# Deploy Manifest BKBS Converter on a shared host (auto-publish to public web root)
 
 This guide is for hosts where you **upload files** (cPanel, Plesk, managed shared/VPS) and want the app to **write machine files into the live website folder** automatically — so agents can fetch:
 

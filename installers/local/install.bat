@@ -1,9 +1,9 @@
 @echo off
-REM BKBS Converter — Local PC installer (Windows, Python edition)
+REM Manifest BKBS Converter — Local PC installer (Windows, Python edition)
 set ROOT=%~dp0..\..
 cd /d "%ROOT%"
 
-echo === BKBS Converter · Local PC install (Python) ===
+echo === Manifest BKBS Converter · Local PC install (Python) ===
 echo Install path: %CD%
 echo.
 
