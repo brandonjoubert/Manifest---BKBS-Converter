@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ entity.name }} · Edit{% endblock %}
+{% block content %}
+  <p class="muted"><a href="/sites/{{ site.id }}/entities">← Entities</a> · {{ site.name }}</p>
+  <h1>{{ entity.name }}</h1>
+  <p class="subtitle">
+    <span class="pill pill-{{ entity.status }}">{{ entity.status }}</span>
+    · {{ entity_type_labels.get(entity.entity_type, entity.entity_type) }}
+    · source {{ entity.source }} · v{{ entity.version }}
+  </p>
+
+  <div class="btn-row">
+    <form method="post" action="/entities/{{ entity.id }}/verify" style="display:inline">
+      <button class="btn btn-success" name="action" value="approve" type="submit">Approve</button>
+    </form>
+    <form method="post" action="/entities/{{ entity.id }}/verify" style="display:inline">
+      <button class="btn btn-danger" name="action" value="reject" type="submit">Reject</button>
+    </form>
+    <form method="post" action="/entities/{{ entity.id }}/verify" style="display:inline">
+      <button class="btn" name="action" value="needs_edit" type="submit">Needs edit</button>
+    </form>
+  </div>
+
+  <form class="card" method="post" action="/entities/{{ entity.id }}">
+    <div class="form-row">
+      <div>
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" required value="{{ entity.name }}" />
+      </div>
+      <div>
+        <label for="entity_type">Entity type</label>
+        <select id="entity_type" name="entity_type">
+          {% for t in entity_types %}
+          <option value="{{ t }}" {% if entity.entity_type == t %}selected{% endif %}>{{ entity_type_labels[t] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <label for="description">Description</label>
+    <textarea id="description" name="description" class="tall" style="font-family:inherit">{{ entity.description or "" }}</textarea>
+
+    <div class="form-row">
+      <div>
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          {% for k, lab in status_labels.items() %}
+          <option value="{{ k }}" {% if entity.status == k %}selected{% endif %}>{{ lab }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="trust_level">Trust level</label>
+        <select id="trust_level" name="trust_level">
+          {% for t in ["low", "medium", "high"] %}
+          <option value="{{ t }}" {% if entity.trust_level == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <label for="notes">Reviewer notes</label>
+    <textarea id="notes" name="notes" style="font-family:inherit">{{ entity.notes or "" }}</textarea>
+
+    <label for="properties_json">Properties (JSON)</label>
+    <textarea id="properties_json" name="properties_json" class="tall">{{ properties_json }}</textarea>
+
+    <label for="relationships_json">Relationships (JSON array)</label>
+    <textarea id="relationships_json" name="relationships_json" class="tall">{{ relationships_json }}</textarea>
+
+    <label for="evidence_json">Evidence (JSON array)</label>
+    <textarea id="evidence_json" name="evidence_json" class="tall">{{ evidence_json }}</textarea>
+
+    <button class="btn btn-primary" type="submit">Save changes</button>
+  </form>
+{% endblock %}

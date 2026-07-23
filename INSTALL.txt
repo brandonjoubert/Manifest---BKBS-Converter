@@ -1,0 +1,86 @@
+BKBS CONVERTER — INSTALLATION QUICK CARD
+========================================
+Full guide: open INSTALL.md in this folder.
+
+WHICH PATH?
+-----------
+A) Your own PC (Windows/Mac/Linux)     → Python edition
+B) Host WITH Python (VPS / cPanel
+   "Setup Python App")                 → Python edition
+C) Host WITHOUT Python (PHP shared)    → PHP edition
+
+
+A) LOCAL PC
+-----------
+Linux/macOS:
+  chmod +x installers/local/install.sh run.sh
+  ./installers/local/install.sh
+  source .venv/bin/activate
+  ./run.sh
+  Open: http://127.0.0.1:8765
+
+Windows:
+  installers\local\install.bat
+  .venv\Scripts\activate
+  uvicorn app.main:app --host 127.0.0.1 --port 8765
+  Open: http://127.0.0.1:8765
+
+
+B) PYTHON HOST
+--------------
+1. Upload whole bkbs-converter folder (prefer outside public_html).
+2. Either:
+   cPanel → Setup Python App
+     Startup file: passenger_wsgi.py
+     Entry point:  application
+     Then: pip install -r requirements.txt  (in the app venv)
+     Restart the Python app.
+   OR VPS:
+     ./installers/python-host/install.sh
+     source .venv/bin/activate
+     uvicorn app.main:app --host 127.0.0.1 --port 8765
+     (use systemd + Nginx reverse proxy for production)
+3. In UI: set Web root = /home/USER/public_html
+4. Scan → Approve → Publish live
+
+
+C) NON-PYTHON (PHP) HOST
+------------------------
+Pre-built package (already in the project):
+  installers/php-host/bkbs-php-edition.zip
+
+On the host:
+  1. Create public_html/bkbs/
+  2. Upload installers/php-host/bkbs-php-edition.zip
+  3. Extract so install.php is in that folder
+  4. Browser: https://YOURDOMAIN/bkbs/install.php
+  5. Set default web root to /home/USER/public_html
+  6. Install → open app → Scan → Approve → Publish live
+
+Needs PHP with: pdo_sqlite, curl, json
+
+Rebuild zip (only if PHP source changed):
+  ./installers/php-host/package.sh
+
+
+AFTER ANY INSTALL
+-----------------
+1. Settings → add OpenAI-compatible API key → Test
+2. Add site (public URL + web root path)
+3. Scan website
+4. Approve entities
+5. Publish live
+6. Check https://YOURDOMAIN/llms.txt
+
+
+INTERACTIVE MENU (Linux/macOS)
+------------------------------
+  ./installers/choose-install.sh
+
+
+HELP
+----
+INSTALL.md          Complete instructions
+USER_MANUAL.md      How to use the product
+deploy/SHARED_HOSTING.md   Python cPanel/VPS detail
+installers/php-host/README.md   PHP upload detail

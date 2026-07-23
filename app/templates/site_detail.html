@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}{{ site.name }} · BKBS Converter{% endblock %}
+{% block content %}
+  <p class="muted"><a href="/">← Sites</a></p>
+  <h1>{{ site.name }}</h1>
+  <p class="subtitle mono"><a href="{{ site.base_url }}" target="_blank" rel="noopener">{{ site.base_url }}</a>
+    · max {{ site.max_pages }} pages · {{ site.crawl_delay_ms }}ms delay</p>
+
+  <div class="stats">
+    <div class="stat"><div class="n">{{ site.entity_count }}</div><div class="l">Entities</div></div>
+    <div class="stat"><div class="n">{{ site.pending_count }}</div><div class="l">Need review</div></div>
+    <div class="stat"><div class="n">{{ site.approved_count }}</div><div class="l">Approved</div></div>
+    {% for st, n in status_counts.items() %}
+    <div class="stat"><div class="n">{{ n }}</div><div class="l">{{ st }}</div></div>
+    {% endfor %}
+  </div>
+
+  <div class="btn-row">
+    <form method="post" action="/sites/{{ site.id }}/scan" style="display:inline">
+      <button class="btn btn-primary" type="submit">
+        {% if site.entity_count %}Rescan website{% else %}Scan website{% endif %}
+      </button>
+    </form>
+    <a class="btn" href="/sites/{{ site.id }}/entities">Review entities</a>
+    <a class="btn" href="/sites/{{ site.id }}/manual">Manual entry</a>
+    <form method="post" action="/sites/{{ site.id }}/publish" style="display:inline">
+      <button class="btn btn-success" type="submit">Publish live to web root</button>
+    </form>
+    <form method="post" action="/sites/{{ site.id }}/export" style="display:inline">
+      <button class="btn" type="submit">Export ZIP</button>
+    </form>
+    <form method="post" action="/sites/{{ site.id }}/export" style="display:inline">
+      <input type="hidden" name="include_pending" value="1" />
+      <button class="btn" type="submit">Export draft ZIP</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Live publish (shared hosting)</h2>
+    <p class="muted">
+      Set the <strong>public web root</strong> on this server (often <code>public_html</code>).
+      Approved BKBS files are written there automatically so agents can fetch them at your domain:
+      <code>/llms.txt</code>, <code>/graph.json</code>, <code>/schema/…</code>, <code>/.well-known/agent.json</code>.
+    </p>
+    {% if resolved_publish_root %}
+    <p class="alert alert-ok" style="margin-bottom:0.75rem">
+      Resolved web root: <code class="mono">{{ resolved_publish_root }}</code>
+      · auto-publish: <strong>{{ "on" if site.auto_publish else "off" }}</strong>
+    </p>
+    {% else %}
+    <p class="alert alert-warn" style="margin-bottom:0.75rem">
+      No web root set yet. Files will not appear on the public site until you configure it below and click
+      <strong>Publish live</strong>.
+    </p>
+    {% endif %}
+
+    <form method="post" action="/sites/{{ site.id }}/settings">
+      <div class="form-row">
+        <div>
+          <label for="name">Display name</label>
+          <input id="name" name="name" type="text" required value="{{ site.name }}" />
+        </div>
+        <div>
+          <label for="base_url">Public site URL</label>
+          <input id="base_url" name="base_url" type="url" required value="{{ site.base_url }}" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label for="max_pages">Max pages</label>
+          <input id="max_pages" name="max_pages" type="number" value="{{ site.max_pages }}" min="1" max="500" />
+        </div>
+        <div>
+          <label for="crawl_delay_ms">Crawl delay (ms)</label>
+          <input id="crawl_delay_ms" name="crawl_delay_ms" type="number" value="{{ site.crawl_delay_ms }}" min="0" max="10000" />
+        </div>
+      </div>
+      <label for="publish_root">Web root path on this server</label>
+      <input id="publish_root" name="publish_root" type="text"
+             value="{{ site.publish_root or '' }}"
+             placeholder="{{ local_publish_hint }}" />
+      <p class="muted" style="margin-top:-0.5rem;font-size:0.8rem">
+        Must be a <strong>real folder</strong> this computer can write to — not a docs example.
+        On shared hosting: full path from File Manager (your username, not “user”).
+        On this PC for testing, use:
+        <code class="mono">{{ local_publish_hint }}</code>
+      </p>
+      <label class="checkbox-row">
+        <input type="checkbox" name="auto_publish" value="1" {% if site.auto_publish %}checked{% endif %} />
+        Auto-publish to web root when exporting approved package
+      </label>
+      <button class="btn btn-primary" type="submit">Save site settings</button>
+    </form>
+  </div>
+
+  <div id="delete" class="card" style="border-color: rgba(243, 18, 96, 0.35); margin-top: 0.5rem;">
+    <h2 style="margin-top:0;color:var(--danger)">Delete site</h2>
+    <p class="muted" style="margin-top:0">
+      Permanently removes this site, all entities, scan history, and export packages from the app database.
+      Live files already written to the web root are <strong>not</strong> deleted automatically.
+    </p>
+    <form method="post" action="/sites/{{ site.id }}/delete"
+          onsubmit="return confirm('Delete this site and all its data permanently?');">
+      <label for="confirm_name">Type the site name to confirm: <strong>{{ site.name }}</strong></label>
+      <input id="confirm_name" name="confirm_name" type="text" required
+             placeholder="{{ site.name }}" autocomplete="off" />
+      <button class="btn btn-danger" type="submit">Delete site permanently</button>
+    </form>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2 style="margin-top:0">Recent scans</h2>
+      {% if scans %}
+      <table>
+        <thead>
+          <tr><th>Status</th><th>Pages</th><th>Found</th><th>When</th></tr>
+        </thead>
+        <tbody>
+          {% for j in scans %}
+          <tr>
+            <td><a href="/scans/{{ j.id }}"><span class="pill pill-{{ j.status }}">{{ j.status }}</span></a></td>
+            <td>{{ j.pages_fetched }}</td>
+            <td>{{ j.entities_found }}</td>
+            <td class="muted">{{ j.created_at }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted">No scans yet. Click <strong>Scan website</strong>.</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Exports</h2>
+      {% if exports %}
+      <table>
+        <thead>
+          <tr><th>Entities</th><th>Draft?</th><th>When</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for e in exports %}
+          <tr>
+            <td>{{ e.entity_count }}</td>
+            <td>{{ "yes" if e.include_pending else "no" }}</td>
+            <td class="muted">{{ e.created_at }}</td>
+            <td><a class="btn btn-sm" href="/api/exports/{{ e.id }}/download">Download</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted">No exports yet. Approve entities first for a production package.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

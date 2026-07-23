@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Settings · BKBS Converter{% endblock %}
+{% block content %}
+  <p class="muted"><a href="/">← Sites</a></p>
+  <h1>LLM / API settings</h1>
+  <p class="subtitle">
+    Connect any <strong>OpenAI-compatible</strong> chat API for deep site extraction.
+    Without a key, scans use heuristics only (limited entities).
+  </p>
+
+  {% if status.configured %}
+  <div class="alert alert-ok">
+    LLM ready · <strong>{{ status.provider_label }}</strong> · model
+    <code>{{ status.model }}</code>
+    · source {{ status.source }}
+    {% if status.api_key_set %}· key {{ status.api_key_masked }}{% endif %}
+  </div>
+  {% else %}
+  <div class="alert alert-warn">
+    No LLM configured. Add a provider below, then re-scan sites for fuller entity extraction.
+  </div>
+  {% endif %}
+
+  <div class="grid-2">
+    <div class="card">
+      <h2 style="margin-top:0">Provider credentials</h2>
+      <form method="post" action="/settings/llm" id="llm-settings-form">
+        <label for="provider">Provider preset</label>
+        <select id="provider" name="provider">
+          {% for key, preset in presets.items() %}
+          <option value="{{ key }}"
+            data-base-url="{{ preset.base_url }}"
+            data-model="{{ preset.default_model }}"
+            {% if status.provider == key %}selected{% endif %}>
+            {{ preset.label }}
+          </option>
+          {% endfor %}
+        </select>
+
+        <label for="base_url">API base URL</label>
+        <input id="base_url" name="base_url" type="url"
+               value="{{ status.base_url }}"
+               placeholder="https://api.openai.com/v1" required />
+        <p class="muted" style="margin-top:-0.5rem;font-size:0.8rem">
+          Must expose OpenAI-style <code>/chat/completions</code> (most modern providers do).
+        </p>
+
+        <label for="model">Model name</label>
+        <input id="model" name="model" type="text"
+               value="{{ status.model }}"
+               placeholder="gpt-4o-mini / grok-4.5 / llama3.2" required />
+
+        <label for="api_key">API key</label>
+        <input id="api_key" name="api_key" type="password" autocomplete="off"
+               placeholder="{% if status.api_key_set %}Leave blank to keep current key ({{ status.api_key_masked }}){% else %}Paste API key{% endif %}" />
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="enabled" value="1" {% if status.enabled %}checked{% endif %} />
+          Enable LLM extraction
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="clear_key" value="1" />
+          Clear stored API key
+        </label>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" type="submit">Save settings</button>
+        </div>
+      </form>
+
+      <form method="post" action="/settings/llm/test" style="margin-top:0.75rem">
+        <button class="btn" type="submit">Test connection</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">How this works</h2>
+      <ol class="muted" style="padding-left:1.2rem;margin:0">
+        <li>Pick a preset or choose <strong>Custom</strong>.</li>
+        <li>Paste your API key from that provider.</li>
+        <li>Confirm base URL and model name.</li>
+        <li>Save, then <strong>Test connection</strong>.</li>
+        <li>Re-scan a site to extract richer BKBS entities.</li>
+      </ol>
+      <h3>Compatible providers</h3>
+      <p class="muted">Any service that implements the OpenAI Chat Completions API, including:</p>
+      <ul class="muted" style="padding-left:1.2rem">
+        <li>xAI / Grok · OpenAI · OpenRouter · Groq</li>
+        <li>Together · Mistral · DeepSeek</li>
+        <li>Ollama / LM Studio (local)</li>
+        <li>Azure OpenAI, vLLM, LiteLLM, etc. via Custom URL</li>
+      </ul>
+      <h3>Security</h3>
+      <p class="muted">
+        Keys are stored in the local app database (<code>data/bkbs.db</code>) on this machine.
+        They are not sent to BKBS servers (there are none). Use a secret with limited scope when possible.
+      </p>
+      <h3>Environment fallback</h3>
+      <p class="muted">
+        If no UI settings are saved, the app also reads
+        <code>XAI_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>LLM_API_KEY</code>,
+        <code>LLM_BASE_URL</code>, and <code>BKBS_MODEL</code> from <code>.env</code>.
+      </p>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var select = document.getElementById("provider");
+  var baseUrl = document.getElementById("base_url");
+  var model = document.getElementById("model");
+  if (!select || !baseUrl || !model) return;
+
+  select.addEventListener("change", function () {
+    var opt = select.options[select.selectedIndex];
+    var bu = opt.getAttribute("data-base-url") || "";
+    var md = opt.getAttribute("data-model") || "";
+    if (bu) baseUrl.value = bu;
+    if (md) model.value = md;
+  });
+})();
+</script>
+{% endblock %}

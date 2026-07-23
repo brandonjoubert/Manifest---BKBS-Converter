@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}BKBS Converter{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">BKBS <span>Converter</span></a>
+    <nav>
+      <a href="/">Sites</a>
+      <a href="/settings">Settings</a>
+      {% if has_llm is defined and has_llm %}
+        <span class="badge-llm ok" title="{{ llm_provider_label if llm_provider_label is defined else 'LLM' }}">
+          LLM ready{% if llm_provider_label is defined %} · {{ llm_provider_label }}{% endif %}
+        </span>
+      {% else %}
+        <a class="badge-llm miss" href="/settings">Configure LLM</a>
+      {% endif %}
+    </nav>
+  </header>
+  <main class="container">
+    {% if msg %}
+      <div class="alert alert-ok">{{ msg }}{% if test_result is defined and test_result %} · {{ test_result }}{% endif %}</div>
+    {% endif %}
+    {% if err %}
+      <div class="alert alert-err">{{ err }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+    <footer class="app-footer">
+      Business Knowledge Base Standard (BKBS) Converter · Machine-first site packaging for AI agents
+    </footer>
+  </main>
+  <script src="/static/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

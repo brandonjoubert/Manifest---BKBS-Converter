@@ -1,0 +1,36 @@
+# Secrets and local config
+.env
+.env.*
+!.env.example
+php/config.php
+
+# Runtime data
+data/
+!data/.gitkeep
+php/data/*.sqlite
+php/data/*.sqlite-*
+dist/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Logs
+*.log
+server.log

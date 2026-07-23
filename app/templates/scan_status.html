@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Scan {{ job.status }} · BKBS Converter{% endblock %}
+{% block content %}
+  <p class="muted"><a href="/sites/{{ site.id }}">← {{ site.name }}</a></p>
+  <h1>
+    {% if auto_refresh %}<span class="progress-dot"></span>{% endif %}
+    Scan {{ job.status }}
+  </h1>
+  <p class="subtitle">Job <span class="mono">{{ job.id }}</span></p>
+
+  {% if auto_refresh %}
+  <div class="alert alert-ok" data-auto-refresh="3">
+    Scan in progress — this page refreshes every 3 seconds.
+  </div>
+  {% endif %}
+
+  <div class="stats">
+    <div class="stat"><div class="n">{{ job.pages_fetched }}</div><div class="l">Pages</div></div>
+    <div class="stat"><div class="n">{{ job.entities_found }}</div><div class="l">Entities touched</div></div>
+    <div class="stat"><div class="n"><span class="pill pill-{{ job.status }}">{{ job.status }}</span></div><div class="l">Status</div></div>
+  </div>
+
+  {% if job.error %}
+  <div class="alert alert-err"><strong>Error:</strong> {{ job.error }}</div>
+  {% endif %}
+
+  {% if job.stats_json %}
+  <div class="card">
+    <h2 style="margin-top:0">Stats</h2>
+    <pre class="mono muted" style="white-space:pre-wrap;margin:0">{{ job.stats_json }}</pre>
+  </div>
+  {% endif %}
+
+  <div class="btn-row">
+    <a class="btn btn-primary" href="/sites/{{ site.id }}/entities">Review entities</a>
+    <a class="btn" href="/sites/{{ site.id }}">Site overview</a>
+    {% if job.status in ['completed', 'failed'] %}
+    <form method="post" action="/sites/{{ site.id }}/scan" style="display:inline">
+      <button class="btn" type="submit">Run again</button>
+    </form>
+    {% endif %}
+  </div>
+{% endblock %}

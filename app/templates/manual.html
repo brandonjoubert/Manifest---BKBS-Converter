@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Manual entry · {{ site.name }}{% endblock %}
+{% block content %}
+  <p class="muted"><a href="/sites/{{ site.id }}">← {{ site.name }}</a></p>
+  <h1>Manual entry</h1>
+  <p class="subtitle">Add BKBS entities by form, or paste free text for AI conversion.</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2 style="margin-top:0">Structured form</h2>
+      <form method="post" action="/sites/{{ site.id }}/manual">
+        <label for="entity_type">Entity type</label>
+        <select id="entity_type" name="entity_type" required>
+          {% for t in entity_types %}
+          <option value="{{ t }}">{{ entity_type_labels[t] }}</option>
+          {% endfor %}
+        </select>
+
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" required placeholder="Install CCTV" />
+
+        <label for="description">Description</label>
+        <textarea id="description" name="description" style="font-family:inherit" placeholder="Factual description..."></textarea>
+
+        <label for="properties_json">Properties (JSON, optional)</label>
+        <textarea id="properties_json" name="properties_json" placeholder='{"region": "Durban", "response_hours": 24}'>{}</textarea>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="approve_immediately" value="1" />
+          Approve immediately
+        </label>
+
+        <button class="btn btn-primary" type="submit">Create entity</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Free text → BKBS</h2>
+      {% if not has_llm %}
+      <div class="alert alert-warn">Without an LLM in <a href="/settings">Settings</a>, free text becomes a single knowledge article (no multi-entity AI split).</div>
+      {% endif %}
+      <form method="post" action="/sites/{{ site.id }}/manual/from-text">
+        <label for="text">Business notes / page paste</label>
+        <textarea id="text" name="text" class="tall" required style="font-family:inherit"
+          placeholder="We install Hikvision CCTV for warehouses in Durban with 24-hour response. Certified installers. Warranty 12 months..."></textarea>
+
+        <label for="default_entity_type">Preferred type (optional hint)</label>
+        <select id="default_entity_type" name="default_entity_type">
+          <option value="">Auto</option>
+          {% for t in entity_types %}
+          <option value="{{ t }}">{{ entity_type_labels[t] }}</option>
+          {% endfor %}
+        </select>
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="approve_immediately" value="1" />
+          Approve immediately
+        </label>
+
+        <button class="btn btn-primary" type="submit">Convert with AI</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

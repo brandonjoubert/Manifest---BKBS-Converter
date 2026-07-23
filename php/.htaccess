@@ -1,0 +1,15 @@
+# BKBS Converter PHP edition
+Options -Indexes
+DirectoryIndex index.php install.php
+
+# Protect private data
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^data/ - [F,L]
+  RewriteRule ^config\.php$ - [F,L]
+  RewriteRule ^src/ - [F,L]
+</IfModule>
+
+<FilesMatch "^(config\.php)$">
+  Require all denied
+</FilesMatch>

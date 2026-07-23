@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · BKBS Converter{% endblock %}
+{% block content %}
+  <h1>Sites</h1>
+  <p class="subtitle">Scan websites into a BKBS knowledge graph, verify entities, and export agent-ready packages.</p>
+
+  {% if not has_llm %}
+  <div class="alert alert-warn">
+    <strong>No LLM configured.</strong> Scans use limited heuristic extraction only.
+    <a href="/settings">Add an API key</a> for any OpenAI-compatible provider (xAI, OpenAI, OpenRouter, Ollama, …)
+    to extract fuller BKBS entities.
+  </div>
+  {% endif %}
+
+  <div class="grid-2">
+    <div class="card">
+      <h2 style="margin-top:0">Add website</h2>
+      <form method="post" action="/sites">
+        <label for="name">Display name</label>
+        <input id="name" name="name" type="text" required placeholder="GENSIX Security" />
+
+        <label for="base_url">Website URL</label>
+        <input id="base_url" name="base_url" type="url" required placeholder="https://example.com" />
+
+        <div class="form-row">
+          <div>
+            <label for="max_pages">Max pages</label>
+            <input id="max_pages" name="max_pages" type="number" value="40" min="1" max="500" />
+          </div>
+          <div>
+            <label for="crawl_delay_ms">Crawl delay (ms)</label>
+            <input id="crawl_delay_ms" name="crawl_delay_ms" type="number" value="300" min="0" max="10000" />
+          </div>
+        </div>
+
+        <label for="publish_root">Web root path (real folder on this machine)</label>
+        <input id="publish_root" name="publish_root" type="text"
+               placeholder="e.g. /home/YOURNAME/public_html or leave blank and set later" />
+
+        <label class="checkbox-row">
+          <input type="checkbox" name="auto_publish" value="1" checked />
+          Auto-publish approved files to web root
+        </label>
+
+        <button class="btn btn-primary" type="submit">Create site</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">How it works</h2>
+      <ol class="muted" style="padding-left:1.2rem;margin:0">
+        <li>Add a site and run <strong>Scan</strong> (or <strong>Rescan</strong> later).</li>
+        <li>Review extracted entities — approve, edit, or reject each one.</li>
+        <li>Add missing knowledge via manual forms or free-text + AI.</li>
+        <li>Export a BKBS package: <code>llms.txt</code>, JSON-LD, <code>graph.json</code>.</li>
+      </ol>
+    </div>
+  </div>
+
+  <h2>Your sites</h2>
+  {% if sites %}
+  <div class="card" style="padding:0;overflow:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>URL</th>
+          <th>Entities</th>
+          <th>Pending</th>
+          <th>Approved</th>
+          <th>Last scan</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sites %}
+        <tr>
+          <td><a href="/sites/{{ s.id }}"><strong>{{ s.name }}</strong></a></td>
+          <td class="mono truncate"><a href="{{ s.base_url }}" target="_blank" rel="noopener">{{ s.base_url }}</a></td>
+          <td>{{ s.entity_count }}</td>
+          <td>{{ s.pending_count }}</td>
+          <td>{{ s.approved_count }}</td>
+          <td>
+            {% if s.last_scan_status %}
+              <span class="pill pill-{{ s.last_scan_status }}">{{ s.last_scan_status }}</span>
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
+          <td style="white-space:nowrap">
+            <a class="btn btn-sm" href="/sites/{{ s.id }}">Open</a>
+            <a class="btn btn-sm btn-danger" href="/sites/{{ s.id }}#delete">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card empty">No sites yet. Add your first website above.</div>
+  {% endif %}
+{% endblock %}

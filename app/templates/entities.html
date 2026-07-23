@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Entities · {{ site.name }}{% endblock %}
+{% block content %}
+  <p class="muted"><a href="/sites/{{ site.id }}">← {{ site.name }}</a></p>
+  <h1>Entity review</h1>
+  <p class="subtitle">Verify each entry before export. Approve only facts you trust.</p>
+
+  <form class="filters card" method="get" action="/sites/{{ site.id }}/entities">
+    <div>
+      <label>Status</label>
+      <select name="status">
+        <option value="">All</option>
+        {% for k, lab in status_labels.items() %}
+        <option value="{{ k }}" {% if status == k %}selected{% endif %}>{{ lab }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Type</label>
+      <select name="entity_type">
+        <option value="">All</option>
+        {% for t in entity_types %}
+        <option value="{{ t }}" {% if entity_type == t %}selected{% endif %}>{{ entity_type_labels[t] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Search</label>
+      <input type="text" name="q" value="{{ q }}" placeholder="Name or description" />
+    </div>
+    <button class="btn" type="submit">Filter</button>
+    <a class="btn" href="/sites/{{ site.id }}/manual">+ Manual</a>
+  </form>
+
+  {% if entities %}
+  <form method="post" action="/entities/bulk-verify">
+    <input type="hidden" name="site_id" value="{{ site.id }}" />
+    <div class="btn-row">
+      <button class="btn btn-success btn-sm" name="action" value="approve" type="submit">Approve selected</button>
+      <button class="btn btn-danger btn-sm" name="action" value="reject" type="submit">Reject selected</button>
+      <button class="btn btn-sm" name="action" value="needs_edit" type="submit">Mark needs edit</button>
+    </div>
+    <div class="card" style="padding:0;overflow:auto">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="select-all" /></th>
+            <th>Status</th>
+            <th>Type</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Source</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entities %}
+          <tr>
+            <td><input type="checkbox" name="entity_ids" value="{{ e.id }}" /></td>
+            <td><span class="pill pill-{{ e.status }}">{{ e.status }}</span></td>
+            <td class="muted">{{ entity_type_labels.get(e.entity_type, e.entity_type) }}</td>
+            <td><strong>{{ e.name }}</strong></td>
+            <td class="truncate muted">{{ e.description or "—" }}</td>
+            <td class="muted">{{ e.source }} · v{{ e.version }}</td>
+            <td>
+              <a class="btn btn-sm" href="/entities/{{ e.id }}">Edit</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+  {% else %}
+  <div class="card empty">No entities match. Run a scan or add manual entries.</div>
+  {% endif %}
+{% endblock %}
