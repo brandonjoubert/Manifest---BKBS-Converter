@@ -1,12 +1,23 @@
 # Manifest BKBS Converter
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
+[![CI](https://github.com/brandonjoubert/Manifest---BKBS-Converter/actions/workflows/ci.yml/badge.svg)](https://github.com/brandonjoubert/Manifest---BKBS-Converter/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PHP 8+](https://img.shields.io/badge/php-8.0+-purple.svg)](https://www.php.net/)
+[![GitHub release](https://img.shields.io/github/v/release/brandonjoubert/Manifest---BKBS-Converter?include_prereleases)](https://github.com/brandonjoubert/Manifest---BKBS-Converter/releases)
 
 **Open-source** web application that scans a business website and converts it into a **Business Knowledge Base Standard (BKBS)** package: agent-readable `llms.txt`, schema.org JSON-LD, full `graph.json`, and related machine layers — with **human verification** and **manual entry**.
 
 Humans keep browsing your HTML site. AI agents get structured, approved facts instead of scraping noise.
+
+> **Status:** v0.1 — usable for real sites; see [ROADMAP.md](./ROADMAP.md).  
+> **Screenshots:** add images under [`docs/screenshots/`](./docs/screenshots/) (placeholder until captured).
+
+## Who it is for
+
+- Businesses that want AI agents to read **accurate** services, capabilities, and policies  
+- Agencies packaging “agent-ready” / BKBS deliverables  
+- Operators on **local PC**, **Python hosts**, or **PHP-only shared hosting**
 
 ## Installation (start here)
 
@@ -45,7 +56,7 @@ Also: plain-text quick card **[INSTALL.txt](./INSTALL.txt)**
 
 ```bash
 git clone https://github.com/brandonjoubert/Manifest---BKBS-Converter.git
-cd bkbs-converter
+cd Manifest---BKBS-Converter
 ./installers/local/install.sh
 source .venv/bin/activate
 ./run.sh
@@ -148,9 +159,23 @@ INSTALL.md           Full install guide
 USER_MANUAL.md       Product user guide
 ```
 
+## Documentation map
+
+| Doc | Purpose |
+|-----|---------|
+| [INSTALL.md](./INSTALL.md) | Deploy on PC / Python host / PHP host |
+| [USER_MANUAL.md](./USER_MANUAL.md) | Day-to-day product use |
+| [ROADMAP.md](./ROADMAP.md) | What’s next |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | How the system is built |
+| [deploy/SHARED_HOSTING.md](./deploy/SHARED_HOSTING.md) | Python cPanel / VPS publish |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | How to contribute |
+| [SECURITY.md](./SECURITY.md) | Vulnerability reporting |
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md). Please read [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) and [SECURITY.md](./SECURITY.md).
+
+Bug reports and features: [open an issue](https://github.com/brandonjoubert/Manifest---BKBS-Converter/issues/new/choose).
 
 ## License
 

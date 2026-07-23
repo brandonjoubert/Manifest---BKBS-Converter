@@ -1,0 +1,10 @@
+# Default reviewers for Manifest BKBS Converter
+# Adjust GitHub username(s) as the team grows.
+
+*       @brandonjoubert
+
+/app/              @brandonjoubert
+/php/              @brandonjoubert
+/installers/       @brandonjoubert
+/.github/          @brandonjoubert
+/*.md              @brandonjoubert

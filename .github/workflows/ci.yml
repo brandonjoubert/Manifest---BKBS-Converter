@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pytest
+        run: pytest -q
+        env:
+          # Tests must not require a live API key
+          XAI_API_KEY: ""
+          LLM_API_KEY: ""
+          BKBS_ALLOW_PRIVATE_URLS: "1"
+
+  php-syntax:
+    name: PHP syntax check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: pdo_sqlite, curl, json, mbstring
+          coverage: none
+
+      - name: Lint PHP sources
+        run: |
+          set -e
+          find php -name '*.php' -print0 | while IFS= read -r -d '' f; do
+            php -l "$f"
+          done
+
+  package-php-zip:
+    name: PHP zip present
+    runs-on: ubuntu-latest
+    needs: [php-syntax]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify installer zip exists
+        run: |
+          test -f installers/php-host/bkbs-php-edition.zip
+          unzip -t installers/php-host/bkbs-php-edition.zip

@@ -1,0 +1,78 @@
+name: Bug report
+description: Something is broken or unexpected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in what you can — more detail = faster fix.
+
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Which edition?
+      options:
+        - Python (local / VPS / cPanel Python App)
+        - PHP (shared hosting)
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Tag (e.g. v0.1.0) or commit hash if known
+      placeholder: v0.1.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Clear description of the bug
+      placeholder: When I click Publish live…
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered list
+      placeholder: |
+        1. Open site …
+        2. Click …
+        3. See error …
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error message / logs
+      description: Paste text (redact API keys and passwords)
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python/PHP version, host type (local, cPanel, VPS)
+      placeholder: |
+        - OS:
+        - Python/PHP:
+        - Host:
+    validations:
+      required: false

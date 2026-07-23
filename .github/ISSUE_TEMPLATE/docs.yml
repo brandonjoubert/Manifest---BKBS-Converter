@@ -1,0 +1,32 @@
+name: Documentation
+description: Fix or improve docs / install guides
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: dropdown
+    id: doc
+    attributes:
+      label: Which document?
+      options:
+        - README.md
+        - INSTALL.md
+        - USER_MANUAL.md
+        - deploy/SHARED_HOSTING.md
+        - installers/*
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What’s wrong or missing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement
+    validations:
+      required: false
