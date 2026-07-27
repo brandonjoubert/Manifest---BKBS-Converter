@@ -24,9 +24,9 @@
     <button class="btn btn-danger btn-sm" name="action" value="reject" type="submit">Reject selected</button>
   </div>
   <div class="card" style="padding:0;overflow:auto">
-    <table>
+<table>
       <thead>
-        <tr><th></th><th>Status</th><th>Type</th><th>Name</th><th>Description</th><th>Quick</th></tr>
+        <tr><th></th><th>Status</th><th>Type</th><th>Name</th><th>Description</th><th>Actions</th></tr>
       </thead>
       <tbody>
       <?php foreach ($entities as $e): ?>
@@ -41,7 +41,7 @@
           <td><strong><?= h($e['name']) ?></strong></td>
           <td class="muted"><?= h($desc) ?></td>
           <td class="muted" style="white-space:nowrap">
-            <!-- use formaction via separate mini forms outside bulk would be cleaner; use GET-less POST buttons via JS-free approach: status change only via bulk or dedicated rows below -->
+            <a class="btn btn-sm" href="<?= h(url('entities/' . $e['id'])) ?>">Edit</a>
           </td>
         </tr>
       <?php endforeach; ?>

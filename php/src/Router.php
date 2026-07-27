@@ -14,7 +14,7 @@ final class Router
             redirect(url('install'));
         }
 
-        match (true) {
+match (true) {
             $route === 'home' && $method === 'GET' => $this->home(),
             $route === 'sites/create' && $method === 'POST' => $this->siteCreate(),
             str_starts_with($route, 'sites/') && str_ends_with($route, '/scan') && $method === 'POST' => $this->scan($this->idFrom($route, 1)),
@@ -23,8 +23,10 @@ final class Router
             str_starts_with($route, 'sites/') && str_ends_with($route, '/delete') && $method === 'POST' => $this->siteDelete($this->idFrom($route, 1)),
             str_starts_with($route, 'sites/') && !str_contains(substr($route, 6), '/') && $method === 'GET' => $this->siteDetail($this->idFrom($route, 1)),
             str_starts_with($route, 'sites/') && str_ends_with($route, '/entities') && $method === 'GET' => $this->entities($this->idFrom($route, 1)),
-            str_starts_with($route, 'entities/') && str_ends_with($route, '/verify') && $method === 'POST' => $this->verify($this->idFrom($route, 1)),
             $route === 'entities/bulk' && $method === 'POST' => $this->bulkVerify(),
+            str_starts_with($route, 'entities/') && !str_ends_with($route, '/verify') && $method === 'GET' => $this->entityEdit($this->idFrom($route, 1)),
+            str_starts_with($route, 'entities/') && str_ends_with($route, '/verify') && $method === 'POST' => $this->verify($this->idFrom($route, 1)),
+            str_starts_with($route, 'entities/') && !str_ends_with($route, '/verify') && $method === 'POST' => $this->entityUpdate($this->idFrom($route, 1)),
             $route === 'settings' && $method === 'GET' => $this->settings(),
             $route === 'settings/llm' && $method === 'POST' => $this->settingsSave(),
             $route === 'settings/llm/test' && $method === 'POST' => $this->settingsTest(),
@@ -269,6 +271,123 @@ final class Router
             'types' => entity_types(),
             'has_llm' => LlmClient::fromSettings(bkbs_db()) !== null,
         ]);
+    }
+
+    private function entityEdit(string $entityId): void
+    {
+        $db = bkbs_db()->pdo();
+        $st = $db->prepare('SELECT * FROM entities WHERE id = ?');
+        $st->execute([$entityId]);
+        $entity = $st->fetch();
+        if (!$entity) {
+            flash_set('err', 'Entity not found');
+            redirect(url('home'));
+        }
+        $site = $this->requireSite($entity['site_id']);
+        render('entity_edit', [
+            'entity' => $entity,
+            'site' => $site,
+            'types' => entity_types(),
+            'has_llm' => LlmClient::fromSettings(bkbs_db()) !== null,
+        ]);
+    }
+
+    private function entityUpdate(string $entityId): void
+    {
+        $db = bkbs_db()->pdo();
+        $st = $db->prepare('SELECT * FROM entities WHERE id = ?');
+        $st->execute([$entityId]);
+        $entity = $st->fetch();
+        if (!$entity) {
+            flash_set('err', 'Entity not found');
+            redirect(url('home'));
+        }
+        $site = $this->requireSite($entity['site_id']);
+
+        $name = trim($_POST['name'] ?? '');
+        $entityType = $_POST['entity_type'] ?? '';
+        $description = trim($_POST['description'] ?? '');
+        $status = $_POST['status'] ?? 'pending';
+        $trustLevel = $_POST['trust_level'] ?? 'medium';
+        $notes = trim($_POST['notes'] ?? '');
+        $intent = $_POST['intent'] ?? 'save';
+
+        if ($name === '' || $entityType === '') {
+            flash_set('err', 'Name and entity type are required');
+            redirect(url('entities/' . $entityId));
+        }
+
+        $propsRaw = $_POST['properties_json'] ?? '{}';
+        $relsRaw = $_POST['relationships_json'] ?? '[]';
+        $evidRaw = $_POST['evidence_json'] ?? '[]';
+
+        try {
+            $props = json_decode($propsRaw, true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($props)) {
+                $props = [];
+            }
+        } catch (\JsonException) {
+            flash_set('err', 'Invalid properties JSON');
+            redirect(url('entities/' . $entityId));
+        }
+        try {
+            $rels = json_decode($relsRaw, true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($rels)) {
+                $rels = [];
+            }
+        } catch (\JsonException) {
+            flash_set('err', 'Invalid relationships JSON');
+            redirect(url('entities/' . $entityId));
+        }
+        try {
+            $evid = json_decode($evidRaw, true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($evid)) {
+                $evid = [];
+            }
+        } catch (\JsonException) {
+            flash_set('err', 'Invalid evidence JSON');
+            redirect(url('entities/' . $entityId));
+        }
+
+        $validStatuses = ['pending', 'approved', 'rejected', 'needs_edit'];
+        if (!in_array($status, $validStatuses, true)) {
+            $status = 'pending';
+        }
+        $validTrust = ['low', 'medium', 'high'];
+        if (!in_array($trustLevel, $validTrust, true)) {
+            $trustLevel = 'medium';
+        }
+
+        // Handle intent: save_approve / save_reject override status
+        if ($intent === 'save_approve') {
+            $status = 'approved';
+        } elseif ($intent === 'save_reject') {
+            $status = 'rejected';
+        }
+
+        $key = external_key($site['id'], $entityType, $name);
+        $now = gmdate('c');
+
+        $st = $db->prepare(
+            'UPDATE entities SET entity_type=?, name=?, description=?, properties=?, relationships=?, evidence=?, trust_level=?, notes=?, status=?, version=version+1, last_updated=?, external_key=? WHERE id=?'
+        );
+        $st->execute([
+            $entityType,
+            $name,
+            $description !== '' ? $description : null,
+            json_encode($props),
+            json_encode($rels),
+            json_encode($evid),
+            $trustLevel,
+            $notes !== '' ? $notes : null,
+            $status,
+            $now,
+            $key,
+            $entityId,
+        ]);
+
+        flash_set('ok', 'Entity saved');
+        redirect(url('entities/' . $entityId));
     }
 
     private function verify(string $entityId): void
