@@ -68,9 +68,15 @@ AFTER ANY INSTALL
 1. Settings → add OpenAI-compatible API key → Test
 2. Add site (public URL + web root path)
 3. Scan website
-4. Approve entities
-5. Publish live
-6. Check https://YOURDOMAIN/llms.txt
+4. Edit pending entities if needed (Edit before approve)
+5. Approve entities
+6. Publish live
+7. Check https://YOURDOMAIN/llms.txt
+
+SMOKE / BASELINE (dev machine)
+------------------------------
+  python scripts/verify_exports.py --edition all
+  pytest -q
 
 
 INTERACTIVE MENU (Linux/macOS)

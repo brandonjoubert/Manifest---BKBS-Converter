@@ -11,7 +11,7 @@ echo
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "ERROR: python3 not found on this host."
-  echo "Use the PHP edition instead: installers/php-host/"
+  echo "Use the PHP edition instead: installers/php-host/bkbs-php-edition.zip"
   exit 1
 fi
 
@@ -34,7 +34,6 @@ elif [[ -d "$(dirname "$ROOT")/public_html" ]]; then
 fi
 
 if [[ -n "$DEFAULT_PUB" ]] && ! grep -q '^DEFAULT_PUBLISH_ROOT=.\+' .env 2>/dev/null; then
-  # append if empty
   if grep -q '^DEFAULT_PUBLISH_ROOT=$' .env 2>/dev/null || ! grep -q DEFAULT_PUBLISH_ROOT .env 2>/dev/null; then
     sed -i.bak "s|^DEFAULT_PUBLISH_ROOT=.*|DEFAULT_PUBLISH_ROOT=$DEFAULT_PUB|" .env 2>/dev/null \
       || echo "DEFAULT_PUBLISH_ROOT=$DEFAULT_PUB" >> .env
@@ -42,8 +41,14 @@ if [[ -n "$DEFAULT_PUB" ]] && ! grep -q '^DEFAULT_PUBLISH_ROOT=.\+' .env 2>/dev/
   fi
 fi
 
-mkdir -p data/exports data/live
+mkdir -p data/exports data/live data/live-public
 chmod 750 data 2>/dev/null || true
+
+echo
+echo "Running smoke checks..."
+pytest -q
+python scripts/verify_exports.py --edition python
+echo "Smoke checks passed."
 
 echo
 echo "=== Next steps ==="
@@ -59,7 +64,10 @@ echo "   Startup file:      passenger_wsgi.py"
 echo "   Entry point:       application"
 echo "   Then Restart the Python App in cPanel."
 echo
-echo "C) In the UI, set each site's Web root to your public_html path,"
-echo "   approve entities, click Publish live."
+echo "C) In the UI:"
+echo "   1. Settings → LLM API key (optional but recommended)"
+echo "   2. Add site + Web root = your real public_html path"
+echo "   3. Scan → Edit pending entities → Approve → Publish live"
 echo
-echo "Docs: deploy/SHARED_HOSTING.md"
+echo "Docs: INSTALL.md · deploy/SHARED_HOSTING.md · USER_MANUAL.md"
+echo "Baseline verify anytime: python scripts/verify_exports.py --edition python"

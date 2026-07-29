@@ -25,7 +25,13 @@ if [[ ! -f .env ]]; then
   echo "Created .env — optional: set API keys, or use Settings in the UI."
 fi
 
-mkdir -p data/exports data/live
+mkdir -p data/exports data/live data/live-public
+
+echo
+echo "Running smoke checks..."
+pytest -q
+python scripts/verify_exports.py --edition python
+echo "Smoke checks passed."
 
 echo
 echo "Install complete."
@@ -36,4 +42,8 @@ echo "  ./run.sh"
 echo "  # or: uvicorn app.main:app --host 127.0.0.1 --port 8765"
 echo
 echo "Then open http://127.0.0.1:8765"
-echo "For local demo publish root, use e.g. $ROOT/data/live-public"
+echo
+echo "Workflow: Add site → Scan → Edit pending entities → Approve → Publish live"
+echo "Local demo publish root: $ROOT/data/live-public"
+echo
+echo "Docs: INSTALL.md · USER_MANUAL.md · test-fixtures/README.md (Stage 0 baseline)"

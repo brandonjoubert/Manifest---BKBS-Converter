@@ -12,6 +12,8 @@ else
 fi
 if [[ ! -f .env ]]; then
   cp .env.example .env
-  echo "Created .env — set XAI_API_KEY for LLM extraction."
+  echo "Created .env — configure LLM in Settings UI or set keys in .env."
 fi
+mkdir -p data/exports data/live data/live-public
+echo "Manifest BKBS Converter → http://${BKBS_HOST:-127.0.0.1}:${BKBS_PORT:-8765}"
 exec uvicorn app.main:app --host "${BKBS_HOST:-127.0.0.1}" --port "${BKBS_PORT:-8765}" --reload

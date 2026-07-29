@@ -2,6 +2,9 @@
 
 For **shared hosting without Python** (typical cPanel PHP accounts).
 
+Part of **Manifest BKBS Converter** — same product goals as the Python edition  
+(local PC and python-host installers).
+
 ## Ready-made package (already built)
 
 ```text
@@ -27,6 +30,7 @@ public_html/bkbs/          ← recommended subdirectory
   .htaccess
   src/
   templates/
+  scripts/                 ← Stage 0 verify helpers (optional on host)
   data/
 ```
 
@@ -39,17 +43,29 @@ bkbs.yourdomain.com  document root  →  php/ folder
 ## Install
 
 1. Open `https://yourdomain.com/bkbs/install.php` in a browser  
-2. Set **default web root** to your main site folder, e.g.  
-   `/home/USERNAME/public_html`  
-   (not the bkbs folder — the folder that serves the human website)  
+2. Set **default web root** to your main site folder from File Manager, e.g.  
+   `/home/YOUR_CPANEL_USERNAME/public_html`  
+   (**not** the placeholder `/home/user/public_html`, and not the `bkbs` folder)  
 3. Click **Install now**  
-4. Open the app → add site → scan → approve → **Publish live**
+4. Open the app → **Settings** (LLM key optional)  
+5. Add site → **Scan** → **Edit** each pending entity if needed → **Approve** → **Publish live**
 
 ## Requirements
 
-- PHP 8.0+ recommended (7.4 may work with minor issues)  
+- PHP 8.0+ recommended  
 - Extensions: `pdo_sqlite`, `curl`, `json`  
 - `data/` directory writable by the web server  
+- Web root folder writable for live publish  
+
+## After install (smoke)
+
+On a machine with PHP CLI (optional):
+
+```bash
+php php/scripts/verify_exports.php
+```
+
+This checks the PHP publisher still matches the Stage 0 golden baseline (`test-fixtures/golden-v0-php/`).
 
 ## Security
 
@@ -64,3 +80,9 @@ bkbs.yourdomain.com  document root  →  php/ folder
 # writes installers/php-host/bkbs-php-edition.zip
 # and copies to dist/bkbs-php-edition.zip
 ```
+
+## Docs
+
+- Full install: `INSTALL.md` (Path C)  
+- Product use: `USER_MANUAL.md`  
+- Stage 0 fixtures: `test-fixtures/README.md`  
