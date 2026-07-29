@@ -1,0 +1,72 @@
+.mbkbs-wrap { max-width: 1100px; }
+.mbkbs-wrap h1 { margin-bottom: 0.5rem; }
+.mbkbs-card {
+  background: #fff;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+.mbkbs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .mbkbs-grid { grid-template-columns: 1fr; } }
+.mbkbs-muted { color: #646970; }
+.mbkbs-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.mbkbs-pill-pending, .mbkbs-pill-needs_edit { background: #fcf0e3; color: #996800; }
+.mbkbs-pill-approved { background: #edfaef; color: #007017; }
+.mbkbs-pill-rejected { background: #fcebec; color: #b32d2e; }
+.mbkbs-stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.mbkbs-stat {
+  background: #f6f7f7;
+  border: 1px solid #dcdcde;
+  border-radius: 4px;
+  padding: 10px 14px;
+  min-width: 100px;
+}
+.mbkbs-stat .n { font-size: 1.4rem; font-weight: 700; }
+.mbkbs-stat .l { font-size: 11px; color: #646970; text-transform: uppercase; }
+.mbkbs-table { width: 100%; border-collapse: collapse; }
+.mbkbs-table th, .mbkbs-table td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid #dcdcde;
+  vertical-align: top;
+}
+.mbkbs-table th { color: #646970; font-size: 12px; }
+.mbkbs-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; align-items: center; }
+.mbkbs-notice-ok {
+  background: #edfaef;
+  border-left: 4px solid #00a32a;
+  padding: 10px 12px;
+  margin: 12px 0;
+}
+.mbkbs-notice-err {
+  background: #fcebec;
+  border-left: 4px solid #d63638;
+  padding: 10px 12px;
+  margin: 12px 0;
+}
+.mbkbs-notice-warn {
+  background: #fcf0e3;
+  border-left: 4px solid #dba617;
+  padding: 10px 12px;
+  margin: 12px 0;
+}
+.mbkbs-field { margin-bottom: 12px; }
+.mbkbs-field label { display: block; font-weight: 600; margin-bottom: 4px; }
+.mbkbs-field input[type="text"],
+.mbkbs-field input[type="url"],
+.mbkbs-field input[type="number"],
+.mbkbs-field input[type="password"],
+.mbkbs-field select,
+.mbkbs-field textarea {
+  width: 100%;
+  max-width: 640px;
+}
