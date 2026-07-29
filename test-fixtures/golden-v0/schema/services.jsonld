@@ -1,0 +1,11 @@
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://fixture.example/#entity-00000000-0000-4000-8000-000000000102",
+    "name": "Install CCTV",
+    "description": "Certified CCTV installation for commercial facilities.",
+    "url": "https://fixture.example",
+    "response_hours": 24
+  }
+]

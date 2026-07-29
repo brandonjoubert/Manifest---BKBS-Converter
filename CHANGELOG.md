@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claim Ledger Stage 0** baseline fixtures and export verification
+  - `test-fixtures/stage0_site.json`, `golden-v0` (Python), `golden-v0-php` (PHP)
+  - `scripts/capture_golden.py`, `scripts/verify_exports.py`
+  - `php/scripts/capture_golden.php`, `php/scripts/verify_exports.php`
+  - Covers all three install paths (local / python-host / php-host)
 - GitHub CI (pytest + PHP lint + zip check)
 - Issue / PR templates, Dependabot, CODEOWNERS
 - `ROADMAP.md`, `docs/ARCHITECTURE.md`, screenshot folder

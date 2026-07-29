@@ -1,0 +1,24 @@
+# Stage0 Fixture Co — BKBS Full Dump
+
+Entities: 4
+
+## Stage0 Fixture Co
+- type: business_identity
+- status: approved
+- description: Deterministic security integrator used for export baselines.
+
+## Install CCTV
+- type: capability
+- status: approved
+- description: Certified CCTV installation for commercial facilities.
+
+## Warehouses
+- type: facility_served
+- status: approved
+- description: Warehouse and logistics sites.
+
+## Workmanship Warranty
+- type: policy
+- status: approved
+- description: 12-month workmanship warranty on installations.
+

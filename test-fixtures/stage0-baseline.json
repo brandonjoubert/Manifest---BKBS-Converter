@@ -1,0 +1,32 @@
+{
+  "stage": 0,
+  "captured_at": "2026-07-29T10:15:29.132236+00:00",
+  "fixture": "test-fixtures/stage0_site.json",
+  "entity_counts": {
+    "site_id": "00000000-0000-4000-8000-000000000001",
+    "site_name": "Stage0 Fixture Co",
+    "by_status": {
+      "approved": 4,
+      "pending": 1
+    },
+    "total": 5,
+    "approved": 4,
+    "pending": 1
+  },
+  "install_paths_covered": [
+    "local (Python)",
+    "python-host (Python)",
+    "php-host (PHP)"
+  ],
+  "editions": {
+    "python": {
+      "golden_dir": "test-fixtures/golden-v0",
+      "golden_zip": "test-fixtures/golden-v0.zip",
+      "zip_sha256": "1ccf9cbad300fa593caaf890c359b8719ce9a8a89df9e5e97ac632a7e10a253b"
+    },
+    "php": {
+      "golden_dir": "test-fixtures/golden-v0-php",
+      "skipped": false
+    }
+  }
+}

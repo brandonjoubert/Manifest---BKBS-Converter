@@ -1,0 +1,17 @@
+# Suggested robots.txt additions for BKBS / AI agents
+# Merge carefully with your existing robots.txt
+
+User-agent: *
+Allow: /
+
+# Explicitly allow common AI crawlers if desired
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://fixture.example/sitemap.xml

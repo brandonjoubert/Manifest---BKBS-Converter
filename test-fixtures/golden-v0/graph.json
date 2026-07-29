@@ -1,0 +1,113 @@
+{
+  "@context": {
+    "bkbs": "https://example.com/bkbs/v1#",
+    "schema": "https://schema.org/"
+  },
+  "bkbs_version": "1.0",
+  "generated_at": "2026-07-29T10:15:33.256740+00:00",
+  "site": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "name": "Stage0 Fixture Co",
+    "base_url": "https://fixture.example"
+  },
+  "entity_count": 4,
+  "entities": [
+    {
+      "id": "00000000-0000-4000-8000-000000000101",
+      "global_id": "https://fixture.example/#entity-00000000-0000-4000-8000-000000000101",
+      "entity_type": "business_identity",
+      "name": "Stage0 Fixture Co",
+      "description": "Deterministic security integrator used for export baselines.",
+      "properties": {
+        "email": "info@fixture.example",
+        "telephone": "+27 31 000 0000",
+        "areaServed": "Durban"
+      },
+      "relationships": [],
+      "evidence": [
+        {
+          "url": "https://fixture.example/",
+          "snippet": "Stage0 Fixture Co",
+          "kind": "fixture"
+        }
+      ],
+      "version": 1,
+      "last_updated": "2026-07-29T10:15:33.114920",
+      "trust_level": "high",
+      "source": "fixture",
+      "status": "approved"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000102",
+      "global_id": "https://fixture.example/#entity-00000000-0000-4000-8000-000000000102",
+      "entity_type": "capability",
+      "name": "Install CCTV",
+      "description": "Certified CCTV installation for commercial facilities.",
+      "properties": {
+        "response_hours": 24
+      },
+      "relationships": [
+        {
+          "predicate": "supports",
+          "target_name": "Warehouses"
+        }
+      ],
+      "evidence": [
+        {
+          "url": "https://fixture.example/cctv",
+          "snippet": "Install CCTV",
+          "kind": "fixture"
+        }
+      ],
+      "version": 1,
+      "last_updated": "2026-07-29T10:15:33.114922",
+      "trust_level": "high",
+      "source": "fixture",
+      "status": "approved"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000103",
+      "global_id": "https://fixture.example/#entity-00000000-0000-4000-8000-000000000103",
+      "entity_type": "facility_served",
+      "name": "Warehouses",
+      "description": "Warehouse and logistics sites.",
+      "properties": {},
+      "relationships": [],
+      "evidence": [
+        {
+          "url": "https://fixture.example/warehouses",
+          "snippet": "Warehouses",
+          "kind": "fixture"
+        }
+      ],
+      "version": 1,
+      "last_updated": "2026-07-29T10:15:33.114923",
+      "trust_level": "medium",
+      "source": "fixture",
+      "status": "approved"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000104",
+      "global_id": "https://fixture.example/#entity-00000000-0000-4000-8000-000000000104",
+      "entity_type": "policy",
+      "name": "Workmanship Warranty",
+      "description": "12-month workmanship warranty on installations.",
+      "properties": {
+        "months": 12
+      },
+      "relationships": [],
+      "evidence": [
+        {
+          "url": "https://fixture.example/warranty",
+          "snippet": "12-month",
+          "kind": "fixture"
+        }
+      ],
+      "version": 1,
+      "last_updated": "2026-07-29T10:15:33.114924",
+      "trust_level": "high",
+      "source": "fixture",
+      "status": "approved"
+    }
+  ]
+}

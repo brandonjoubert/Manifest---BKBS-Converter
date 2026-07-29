@@ -391,6 +391,7 @@ def ui_entity_save(
     properties_json: str = Form("{}"),
     relationships_json: str = Form("[]"),
     evidence_json: str = Form("[]"),
+    intent: str = Form("save"),
     db: Session = Depends(get_db),
 ):
     ent = db.get(Entity, entity_id)
@@ -421,10 +422,17 @@ def ui_entity_save(
             f"/entities/{entity_id}?err=Invalid+evidence+JSON", status_code=303
         )
 
+    # Intent can force approval/rejection after save
+    final_status = status
+    if intent == "save_approve":
+        final_status = "approved"
+    elif intent == "save_reject":
+        final_status = "rejected"
+
     ent.name = name.strip()
     ent.entity_type = entity_type
     ent.description = description.strip() or None
-    ent.status = status
+    ent.status = final_status
     ent.trust_level = trust_level
     ent.notes = notes.strip() or None
     ent.properties = props
@@ -442,6 +450,14 @@ def ui_entity_save(
         )
     )
     db.commit()
+    if intent == "save_approve":
+        return RedirectResponse(
+            f"/sites/{ent.site_id}/entities?msg=Saved+and+approved", status_code=303
+        )
+    if intent == "save_reject":
+        return RedirectResponse(
+            f"/sites/{ent.site_id}/entities?msg=Saved+and+rejected", status_code=303
+        )
     return RedirectResponse(f"/entities/{entity_id}?msg=Saved", status_code=303)
 
 

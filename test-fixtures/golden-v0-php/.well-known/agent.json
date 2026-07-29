@@ -1,0 +1,9 @@
+{
+    "name": "Stage0 Fixture Co",
+    "url": "https:\/\/fixture.example",
+    "protocol": "agent-web-protocol-stub",
+    "knowledge": {
+        "llms_txt": "https:\/\/fixture.example\/llms.txt",
+        "graph": "https:\/\/fixture.example\/graph.json"
+    }
+}

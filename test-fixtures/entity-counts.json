@@ -1,0 +1,11 @@
+{
+    "site_id": "00000000-0000-4000-8000-000000000001",
+    "site_name": "Stage0 Fixture Co",
+    "by_status": {
+        "approved": 4,
+        "pending": 1
+    },
+    "total": 5,
+    "approved": 4,
+    "pending": 1
+}

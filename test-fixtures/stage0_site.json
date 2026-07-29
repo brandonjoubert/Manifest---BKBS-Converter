@@ -1,0 +1,127 @@
+{
+  "fixture_id": "stage0-v0",
+  "description": "Deterministic approved site for Claim Ledger Stage 0 golden exports",
+  "site": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "name": "Stage0 Fixture Co",
+    "base_url": "https://fixture.example",
+    "max_pages": 10,
+    "crawl_delay_ms": 0,
+    "publish_root": null,
+    "auto_publish": false
+  },
+  "entities": [
+    {
+      "id": "00000000-0000-4000-8000-000000000101",
+      "external_key": "fixture-identity",
+      "entity_type": "business_identity",
+      "name": "Stage0 Fixture Co",
+      "description": "Deterministic security integrator used for export baselines.",
+      "properties": {
+        "email": "info@fixture.example",
+        "telephone": "+27 31 000 0000",
+        "areaServed": "Durban"
+      },
+      "relationships": [],
+      "evidence": [
+        {
+          "url": "https://fixture.example/",
+          "snippet": "Stage0 Fixture Co",
+          "kind": "fixture"
+        }
+      ],
+      "version": 1,
+      "trust_level": "high",
+      "source": "fixture",
+      "status": "approved",
+      "notes": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000102",
+      "external_key": "fixture-cctv",
+      "entity_type": "capability",
+      "name": "Install CCTV",
+      "description": "Certified CCTV installation for commercial facilities.",
+      "properties": {
+        "response_hours": 24
+      },
+      "relationships": [
+        {
+          "predicate": "supports",
+          "target_name": "Warehouses"
+        }
+      ],
+      "evidence": [
+        {
+          "url": "https://fixture.example/cctv",
+          "snippet": "Install CCTV",
+          "kind": "fixture"
+        }
+      ],
+      "version": 1,
+      "trust_level": "high",
+      "source": "fixture",
+      "status": "approved",
+      "notes": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000103",
+      "external_key": "fixture-warehouse",
+      "entity_type": "facility_served",
+      "name": "Warehouses",
+      "description": "Warehouse and logistics sites.",
+      "properties": {},
+      "relationships": [],
+      "evidence": [
+        {
+          "url": "https://fixture.example/warehouses",
+          "snippet": "Warehouses",
+          "kind": "fixture"
+        }
+      ],
+      "version": 1,
+      "trust_level": "medium",
+      "source": "fixture",
+      "status": "approved",
+      "notes": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000104",
+      "external_key": "fixture-warranty",
+      "entity_type": "policy",
+      "name": "Workmanship Warranty",
+      "description": "12-month workmanship warranty on installations.",
+      "properties": {
+        "months": 12
+      },
+      "relationships": [],
+      "evidence": [
+        {
+          "url": "https://fixture.example/warranty",
+          "snippet": "12-month",
+          "kind": "fixture"
+        }
+      ],
+      "version": 1,
+      "trust_level": "high",
+      "source": "fixture",
+      "status": "approved",
+      "notes": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000105",
+      "external_key": "fixture-pending-ignore",
+      "entity_type": "capability",
+      "name": "Pending Only Capability",
+      "description": "Must not appear in production export (status pending).",
+      "properties": {},
+      "relationships": [],
+      "evidence": [],
+      "version": 1,
+      "trust_level": "low",
+      "source": "fixture",
+      "status": "pending",
+      "notes": null
+    }
+  ]
+}

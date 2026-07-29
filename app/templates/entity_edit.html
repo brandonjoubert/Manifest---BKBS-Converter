@@ -1,25 +1,20 @@
 {% extends "base.html" %}
-{% block title %}{{ entity.name }} · Edit{% endblock %}
+{% block title %}{{ entity.name }} · Review &amp; edit{% endblock %}
 {% block content %}
   <p class="muted"><a href="/sites/{{ site.id }}/entities">← Entities</a> · {{ site.name }}</p>
-  <h1>{{ entity.name }}</h1>
+  <h1>Review &amp; edit entity</h1>
   <p class="subtitle">
     <span class="pill pill-{{ entity.status }}">{{ entity.status }}</span>
     · {{ entity_type_labels.get(entity.entity_type, entity.entity_type) }}
     · source {{ entity.source }} · v{{ entity.version }}
   </p>
 
-  <div class="btn-row">
-    <form method="post" action="/entities/{{ entity.id }}/verify" style="display:inline">
-      <button class="btn btn-success" name="action" value="approve" type="submit">Approve</button>
-    </form>
-    <form method="post" action="/entities/{{ entity.id }}/verify" style="display:inline">
-      <button class="btn btn-danger" name="action" value="reject" type="submit">Reject</button>
-    </form>
-    <form method="post" action="/entities/{{ entity.id }}/verify" style="display:inline">
-      <button class="btn" name="action" value="needs_edit" type="submit">Needs edit</button>
-    </form>
+  {% if entity.status == 'pending' or entity.status == 'needs_edit' %}
+  <div class="alert alert-warn">
+    This entry is not published yet. Edit the fields below, then <strong>Save</strong> and/or
+    <strong>Save &amp; approve</strong> when the fact is correct.
   </div>
+  {% endif %}
 
   <form class="card" method="post" action="/entities/{{ entity.id }}">
     <div class="form-row">
@@ -71,6 +66,11 @@
     <label for="evidence_json">Evidence (JSON array)</label>
     <textarea id="evidence_json" name="evidence_json" class="tall">{{ evidence_json }}</textarea>
 
-    <button class="btn btn-primary" type="submit">Save changes</button>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit" name="intent" value="save">Save changes</button>
+      <button class="btn btn-success" type="submit" name="intent" value="save_approve">Save &amp; approve</button>
+      <button class="btn btn-danger" type="submit" name="intent" value="save_reject">Save &amp; reject</button>
+      <a class="btn" href="/sites/{{ site.id }}/entities">Back to list</a>
+    </div>
   </form>
 {% endblock %}

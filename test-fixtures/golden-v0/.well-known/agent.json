@@ -1,0 +1,20 @@
+{
+  "name": "Stage0 Fixture Co",
+  "description": "Agent capabilities for Stage0 Fixture Co",
+  "url": "https://fixture.example",
+  "version": "1.0",
+  "protocol": "agent-web-protocol-stub",
+  "capabilities": [
+    {
+      "id": "00000000-0000-4000-8000-000000000102",
+      "name": "Install CCTV",
+      "description": "Certified CCTV installation for commercial facilities.",
+      "type": "service"
+    }
+  ],
+  "knowledge": {
+    "llms_txt": "https://fixture.example/llms.txt",
+    "graph": "https://fixture.example/graph.json",
+    "schema_org": "https://fixture.example/schema/organization.jsonld"
+  }
+}

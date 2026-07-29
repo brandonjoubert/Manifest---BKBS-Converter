@@ -1,0 +1,7 @@
+{
+    "@context": "https:\/\/schema.org",
+    "@type": "LocalBusiness",
+    "name": "Stage0 Fixture Co",
+    "url": "https:\/\/fixture.example",
+    "description": "Deterministic security integrator used for export baselines."
+}

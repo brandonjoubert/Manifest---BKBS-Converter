@@ -37,6 +37,12 @@ jobs:
           LLM_API_KEY: ""
           BKBS_ALLOW_PRIVATE_URLS: "1"
 
+      - name: Stage 0 export baseline (Python)
+        run: python scripts/verify_exports.py --edition python
+        env:
+          XAI_API_KEY: ""
+          LLM_API_KEY: ""
+
   php-syntax:
     name: PHP syntax check
     runs-on: ubuntu-latest
@@ -58,6 +64,9 @@ jobs:
           find php -name '*.php' -print0 | while IFS= read -r -d '' f; do
             php -l "$f"
           done
+
+      - name: Stage 0 export baseline (PHP)
+        run: php php/scripts/verify_exports.php
 
   package-php-zip:
     name: PHP zip present
