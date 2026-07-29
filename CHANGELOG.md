@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `scripts/capture_golden.py`, `scripts/verify_exports.py`
   - `php/scripts/capture_golden.php`, `php/scripts/verify_exports.php`
   - Covers all three install paths (local / python-host / php-host)
+- Installers run smoke checks (`pytest` + Stage 0 verify) after install
+- Entity review: clearer **Edit before approve** / Save & approve flow
 - GitHub CI (pytest + PHP lint + zip check)
 - Issue / PR templates, Dependabot, CODEOWNERS
 - `ROADMAP.md`, `docs/ARCHITECTURE.md`, screenshot folder
