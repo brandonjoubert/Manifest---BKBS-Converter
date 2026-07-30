@@ -1,16 +1,19 @@
+# Dependabot policy for Manifest BKBS Converter
+# Only auto-open PRs that cannot change application runtime behaviour.
+# Python package upgrades are intentional/manual (compatibility risk).
+
 version: 2
 updates:
-  - package-ecosystem: pip
-    directory: "/"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-
+  # Safe: CI workflow tooling only (does not affect app code at runtime)
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: monthly
+    open-pull-requests-limit: 5
     labels:
       - dependencies
+
+  # Intentionally disabled for now:
+  # - package-ecosystem: pip
+  #   Raising FastAPI/openai/lxml/etc. can introduce incompatibilities.
+  #   Re-enable later with versioning-strategy and careful review.
