@@ -1,0 +1,53 @@
+{
+  "stage": 1,
+  "description": "Claim Ledger Stage 1 contract: empty claims storage + stub resolvers only",
+  "statuses": ["pending", "approved", "rejected", "superseded"],
+  "columns": [
+    "id",
+    "entity_id",
+    "entity_type",
+    "attribute",
+    "value",
+    "source_url",
+    "extraction_method",
+    "confidence",
+    "status",
+    "supersedes_id",
+    "created_at",
+    "approved_by",
+    "approved_at",
+    "review_due_at"
+  ],
+  "indexes": [
+    "idx_claims_entity_attr",
+    "idx_claims_status",
+    "idx_claims_supersedes"
+  ],
+  "editions": {
+    "python": {
+      "table": "claims",
+      "model": "app.models.Claim",
+      "resolver_module": "app.services.resolver",
+      "resolver_function": "resolve_entity",
+      "stub_returns": null
+    },
+    "php": {
+      "table": "claims",
+      "resolver_class": "Bkbs\\\\Resolver",
+      "resolver_method": "resolveEntity",
+      "stub_returns": null
+    },
+    "wordpress": {
+      "table_suffix": "mbkbs_claims",
+      "resolver_class": "MBKBS_Resolver",
+      "resolver_method": "resolve_entity",
+      "db_version": "2",
+      "stub_returns": null,
+      "source_files": [
+        "wordpress-plugin/manifest-bkbs-converter/includes/class-mbkbs-database.php",
+        "wordpress-plugin/manifest-bkbs-converter/includes/class-mbkbs-resolver.php",
+        "wordpress-plugin/manifest-bkbs-converter/manifest-bkbs-converter.php"
+      ]
+    }
+  }
+}

@@ -25,6 +25,23 @@ final class MBKBS_Database
         return $wpdb->prefix . 'mbkbs_settings';
     }
 
+    public static function claims_table(): string
+    {
+        global $wpdb;
+        return $wpdb->prefix . 'mbkbs_claims';
+    }
+
+    /**
+     * Run schema install/upgrade when option version is behind plugin constant.
+     */
+    public static function maybe_upgrade(): void
+    {
+        $current = (string) get_option('mbkbs_db_version', '0');
+        if (version_compare($current, (string) MBKBS_DB_VERSION, '<')) {
+            self::activate();
+        }
+    }
+
     public static function activate(): void
     {
         global $wpdb;
@@ -33,6 +50,7 @@ final class MBKBS_Database
         $sites = self::sites_table();
         $entities = self::entities_table();
         $settings = self::settings_table();
+        $claims = self::claims_table();
 
         $sql_sites = "CREATE TABLE {$sites} (
             id varchar(36) NOT NULL,
@@ -72,9 +90,33 @@ final class MBKBS_Database
             PRIMARY KEY  (setting_key)
         ) {$charset};";
 
+        // Claim Ledger Stage 1: append-only claims foundation (no write path yet).
+        // Indexes required; FK on supersedes_id optional under dbDelta.
+        $sql_claims = "CREATE TABLE {$claims} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            entity_id varchar(36) NOT NULL,
+            entity_type varchar(64) NOT NULL,
+            attribute varchar(128) NOT NULL,
+            value longtext NOT NULL,
+            source_url text NULL,
+            extraction_method varchar(32) NOT NULL,
+            confidence double NULL,
+            status varchar(32) NOT NULL,
+            supersedes_id bigint(20) unsigned NULL,
+            created_at datetime NOT NULL,
+            approved_by varchar(191) NULL,
+            approved_at datetime NULL,
+            review_due_at datetime NULL,
+            PRIMARY KEY  (id),
+            KEY idx_claims_entity_attr (entity_id, attribute),
+            KEY idx_claims_status (status),
+            KEY idx_claims_supersedes (supersedes_id)
+        ) {$charset};";
+
         dbDelta($sql_sites);
         dbDelta($sql_entities);
         dbDelta($sql_settings);
+        dbDelta($sql_claims);
         update_option('mbkbs_db_version', MBKBS_DB_VERSION);
 
         // Seed "this WordPress site" if empty.

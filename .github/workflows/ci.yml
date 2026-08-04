@@ -43,6 +43,12 @@ jobs:
           XAI_API_KEY: ""
           LLM_API_KEY: ""
 
+      - name: Claim Ledger Stage 1 contract
+        run: python scripts/stage1_contract_check.py
+        env:
+          XAI_API_KEY: ""
+          LLM_API_KEY: ""
+
   php-syntax:
     name: PHP syntax check
     runs-on: ubuntu-latest
@@ -67,6 +73,9 @@ jobs:
 
       - name: Stage 0 export baseline (PHP)
         run: php php/scripts/verify_exports.php
+
+      - name: PHP Resolver lint (Stage 1)
+        run: php -l php/src/Resolver.php
 
   package-php-zip:
     name: PHP zip present

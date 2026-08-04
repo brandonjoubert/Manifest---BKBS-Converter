@@ -56,22 +56,36 @@
 
 ## STAGE 1: Add Claims Table (Additive, No Data Migration)
 
+**Status:** Implemented 2026-08-04 (Python + PHP Host + WordPress)  
+**Scope amendment:** All three monorepo editions. Contract gate required.
+
 ### ENTRY
 - Stage 0 complete
-- DB backup taken
+- DB backup taken (recommended before deploy)
 
-### TASKS (Both Editions)
+### TASKS (All Editions)
 
 **Python:**
-1. Add `claims` table creation in `app/db.py::init_db()` (raw SQL, no Alembic needed)
-2. Add `Claim` SQLAlchemy model in `app/models.py`
-3. Add `resolve_entity(entity_id, as_of=None)` stub in `app/services/resolver.py` (returns empty for now)
+1. `claims` via SQLAlchemy `Claim` model + `init_db()` / `create_all`
+2. `app/services/resolver.py::resolve_entity()` stub returns `None`
+3. Indexes created in `_migrate_sqlite()`
 
-**PHP:**
-1. Extend `Database.php::migrate()` with claims table DDL
-2. Add `Resolver.php` class with `resolveEntity($entityId, $asOf = null)` stub
+**PHP Host:**
+1. `Database.php::migrate()` CREATE TABLE claims + indexes
+2. `Resolver.php::resolveEntity()` stub returns `null`
+3. Autoload entry in `bootstrap.php`
 
-**Shared DDL:**
+**WordPress:**
+1. `{prefix}mbkbs_claims` via `dbDelta`; `MBKBS_DB_VERSION` = `2`
+2. `MBKBS_Database::maybe_upgrade()` on `plugins_loaded`
+3. `MBKBS_Resolver::resolve_entity()` stub returns `null`
+
+**Contract gate:**
+- `test-fixtures/stage1_claims_contract.json`
+- `scripts/stage1_contract_check.py` (CI + local)
+- Triple-edition PASS required; no partial ship
+
+**Shared logical DDL (SQLite shape):**
 ```sql
 CREATE TABLE claims (
     id              INTEGER PRIMARY KEY,
@@ -95,13 +109,14 @@ CREATE INDEX idx_claims_supersedes ON claims(supersedes_id);
 ```
 
 ### EXIT
-- [ ] `claims` table exists in both editions (verify: `.schema claims` / `DESCRIBE claims`)
-- [ ] No changes to `entities` table or any existing code paths
-- [ ] App starts and runs normally (smoke test: dashboard loads, scan works)
-- [ ] Verification script from Stage 0 still passes
+- [x] `claims` table exists in Python + PHP (WP: `{prefix}mbkbs_claims`)
+- [x] Stub resolvers present in all three editions (return null/None)
+- [x] No changes to `entities` write paths, scan, or export readers
+- [x] Stage 0 verification script still passes
+- [x] `python scripts/stage1_contract_check.py` PASS
 
 ### ROLLBACK
-- Drop `claims` table — zero impact on existing functionality
+- Drop `claims` / `{prefix}mbkbs_claims`; remove stub modules; set WP `mbkbs_db_version` to 1
 
 ---
 

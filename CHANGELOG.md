@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Claim Ledger Stage 1** (additive foundation, all three editions)
+  - Python: `Claim` model, `claims` table via `init_db`, `app/services/resolver.py` stub
+  - PHP Host: `claims` DDL in `Database::migrate`, `Bkbs\Resolver` stub
+  - WordPress: `{prefix}mbkbs_claims`, `MBKBS_DB_VERSION=2`, `maybe_upgrade`, `MBKBS_Resolver` stub
+  - Contract: `test-fixtures/stage1_claims_contract.json`, `scripts/stage1_contract_check.py`, CI step
+  - No scan/export/UI behavior change; Stage 0 goldens still required to pass
+
 ### Fixed
 
 - Document live-publish artifact `bkbs/README.txt` in `INSTALL.md` §8 and `deploy/SHARED_HOSTING.md` (written by Python and PHP publishers; was missing from the published-files tables)
 - WordPress plugin: emit `@type: LocalBusiness` in `schema/organization.jsonld` to match Python and PHP public contract (was `Organization`)
 - Publish live test asserts `bkbs/README.txt` and organization JSON-LD `@type`
 
-### Added
+### Also added (earlier)
 
 - **Claim Ledger Stage 0** baseline fixtures and export verification
   - `test-fixtures/stage0_site.json`, `golden-v0` (Python), `golden-v0-php` (PHP)

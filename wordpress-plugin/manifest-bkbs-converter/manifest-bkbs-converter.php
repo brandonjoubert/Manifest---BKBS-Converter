@@ -25,9 +25,10 @@ define('MBKBS_VERSION', '0.1.0');
 define('MBKBS_PLUGIN_FILE', __FILE__);
 define('MBKBS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MBKBS_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('MBKBS_DB_VERSION', '1');
+define('MBKBS_DB_VERSION', '2');
 
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-database.php';
+require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-resolver.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-crawler.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-extractor.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-llm.php';
@@ -38,5 +39,7 @@ register_activation_hook(__FILE__, ['MBKBS_Database', 'activate']);
 register_deactivation_hook(__FILE__, ['MBKBS_Plugin', 'deactivate']);
 
 add_action('plugins_loaded', static function (): void {
+    // Claim Ledger Stage 1: upgrade existing installs when DB version lags.
+    MBKBS_Database::maybe_upgrade();
     MBKBS_Plugin::instance()->init();
 });

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -155,3 +156,29 @@ class Export(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     site: Mapped[Site] = relationship(back_populates="exports")
+
+
+class Claim(Base):
+    """Append-only attribute claim (Claim Ledger Stage 1 foundation).
+
+    Stage 1: table + model only. No scan/export path reads or writes claims yet.
+    """
+
+    __tablename__ = "claims"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entity_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    attribute: Mapped[str] = mapped_column(String(128), nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extraction_method: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    supersedes_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("claims.id"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    approved_by: Mapped[str | None] = mapped_column(String(191), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

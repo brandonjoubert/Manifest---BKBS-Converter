@@ -47,10 +47,38 @@ def _migrate_sqlite() -> None:
             conn.execute(
                 text("ALTER TABLE sites ADD COLUMN auto_publish BOOLEAN DEFAULT 1")
             )
+        # Claim Ledger Stage 1 indexes — only if claims exists (create_all first).
+        # Creating indexes on a missing table would raise OperationalError and, with
+        # the outer try/except in init_db, could hide other migration work.
+        tables = {
+            r[0]
+            for r in conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table'")
+            ).fetchall()
+        }
+        if "claims" in tables:
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_claims_entity_attr "
+                    "ON claims(entity_id, attribute)"
+                )
+            )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status)")
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_claims_supersedes "
+                    "ON claims(supersedes_id)"
+                )
+            )
         conn.commit()
 
 
 def init_db() -> None:
+    # Import models so Claim (and others) register on Base.metadata before create_all.
+    import app.models  # noqa: F401
+
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.exports_dir.mkdir(parents=True, exist_ok=True)
     (settings.data_dir / "live").mkdir(parents=True, exist_ok=True)

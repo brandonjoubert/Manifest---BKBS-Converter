@@ -17,6 +17,7 @@ spl_autoload_register(function (string $class): void {
         'Bkbs\\Extractor' => __DIR__ . '/Extractor.php',
         'Bkbs\\LlmClient' => __DIR__ . '/LlmClient.php',
         'Bkbs\\Publisher' => __DIR__ . '/Publisher.php',
+        'Bkbs\\Resolver' => __DIR__ . '/Resolver.php',
         'Bkbs\\Router' => __DIR__ . '/Router.php',
     ];
     if (isset($map[$class])) {

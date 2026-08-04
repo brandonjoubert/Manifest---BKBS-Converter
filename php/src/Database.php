@@ -80,6 +80,26 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS claims (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entity_id TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  attribute TEXT NOT NULL,
+  value TEXT NOT NULL,
+  source_url TEXT,
+  extraction_method TEXT NOT NULL,
+  confidence REAL,
+  status TEXT NOT NULL,
+  supersedes_id INTEGER REFERENCES claims(id),
+  created_at TEXT NOT NULL,
+  approved_by TEXT,
+  approved_at TEXT,
+  review_due_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_claims_entity_attr ON claims(entity_id, attribute);
+CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status);
+CREATE INDEX IF NOT EXISTS idx_claims_supersedes ON claims(supersedes_id);
 SQL);
     }
 
