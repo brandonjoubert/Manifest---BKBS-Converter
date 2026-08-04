@@ -190,9 +190,10 @@ final class MBKBS_Publisher
                 break;
             }
         }
+        // Public contract matches Python/PHP editions: LocalBusiness (schema.org subtype of Organization).
         $org = wp_json_encode([
             '@context' => 'https://schema.org',
-            '@type' => 'Organization',
+            '@type' => 'LocalBusiness',
             'name' => $name,
             'url' => $home,
             'description' => $identity_desc,

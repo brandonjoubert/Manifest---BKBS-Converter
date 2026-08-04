@@ -104,6 +104,7 @@ The app writes:
 | `public_html/schema/organization.jsonld` | `https://domain/schema/organization.jsonld` |
 | `public_html/schema/services.jsonld` | `https://domain/schema/services.jsonld` |
 | `public_html/.well-known/agent.json` | `https://domain/.well-known/agent.json` |
+| `public_html/bkbs/README.txt` | `https://domain/bkbs/README.txt` |
 | `public_html/robots.txt` | Merged safely (BKBS block only) |
 
 ### Workflow every time content changes

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Document live-publish artifact `bkbs/README.txt` in `INSTALL.md` §8 and `deploy/SHARED_HOSTING.md` (written by Python and PHP publishers; was missing from the published-files tables)
+- WordPress plugin: emit `@type: LocalBusiness` in `schema/organization.jsonld` to match Python and PHP public contract (was `Organization`)
+- Publish live test asserts `bkbs/README.txt` and organization JSON-LD `@type`
+
 ### Added
 
 - **Claim Ledger Stage 0** baseline fixtures and export verification

@@ -50,8 +50,17 @@ def test_publish_writes_live_files(tmp_path):
         assert "Live Co" in (root / "llms.txt").read_text(encoding="utf-8")
         assert (root / "graph.json").exists()
         assert (root / "schema" / "organization.jsonld").exists()
+        assert (root / "schema" / "services.jsonld").exists()
         assert (root / ".well-known" / "agent.json").exists()
+        assert (root / "bkbs" / "README.txt").exists()
+        assert "Live Co" in (root / "bkbs" / "README.txt").read_text(encoding="utf-8")
         assert (root / "robots.txt").exists()
         assert "BEGIN BKBS" in (root / "robots.txt").read_text(encoding="utf-8")
+
+        import json
+
+        org = json.loads((root / "schema" / "organization.jsonld").read_text(encoding="utf-8"))
+        assert org.get("@type") == "LocalBusiness"
+        assert org.get("name") == "Live Co"
     finally:
         db.close()

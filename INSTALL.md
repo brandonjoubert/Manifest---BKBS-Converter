@@ -635,7 +635,10 @@ When publish succeeds, the web root receives files such as:
 | `schema/organization.jsonld` | `https://yourdomain.com/schema/organization.jsonld` |
 | `schema/services.jsonld` | `https://yourdomain.com/schema/services.jsonld` |
 | `.well-known/agent.json` | `https://yourdomain.com/.well-known/agent.json` |
+| `bkbs/README.txt` | `https://yourdomain.com/bkbs/README.txt` |
 | `robots.txt` | Existing file is **merged** (BKBS block only), not wiped |
+
+`schema/organization.jsonld` uses schema.org `@type: LocalBusiness` (a subtype of Organization). Python, PHP, and WordPress editions all emit the same type.
 
 ### Setting the web root correctly
 
