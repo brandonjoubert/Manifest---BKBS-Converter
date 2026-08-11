@@ -55,7 +55,8 @@ def test_claim_model_insert_and_cleanup():
         db.close()
 
 
-def test_resolve_entity_stub_returns_none():
+def test_resolve_entity_without_db_returns_none():
+    """Stage 1 call sites (no db=) still get None; Stage 2 needs db= for real resolve."""
     assert resolve_entity("any-id") is None
     assert resolve_entity(None) is None
     assert resolve_entity("") is None

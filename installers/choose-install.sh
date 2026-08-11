@@ -49,11 +49,17 @@ case "$choice" in
     if [[ -f "$ROOT/.venv/bin/activate" ]]; then
       source "$ROOT/.venv/bin/activate"
     fi
+    echo "=== pytest ==="
+    pytest -q
+    echo
     echo "=== Stage 0 verify (all editions) ==="
     python "$ROOT/scripts/verify_exports.py" --edition all
     echo
-    echo "=== pytest ==="
-    pytest -q
+    echo "=== Stage 1 claim ledger contract (all editions) ==="
+    python "$ROOT/scripts/stage1_contract_check.py"
+    echo
+    echo "=== Stage 2 export-via-resolve (all editions) ==="
+    python "$ROOT/scripts/verify_exports_via_resolve.py" --edition all
     ;;
   5)
     echo

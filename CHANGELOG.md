@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claim Ledger Stage 2** (backfill + real resolve, all three editions; dual-path only)
+  - Python: `claim_codec`, `ResolvedEntity`, real `resolve_entity(db=)`, `scripts/backfill_claims.py`, `scripts/verify_exports_via_resolve.py`
+  - PHP Host: real `Bkbs\Resolver`, `php/scripts/backfill_claims.php`, `php/scripts/verify_exports_via_resolve.php`
+  - WordPress: `MBKBS_Backfill`, real `MBKBS_Resolver`, admin Tools “Run backfill”, `wp mbkbs backfill-claims`
+  - Hybrid resolve: claims override attributes; entity row supplies id/type/external_key/version/last_updated
+  - Production export/publish still reads entities (Stage 4 cutover later)
+  - CI: Stage 2 export-via-resolve for Python + PHP; Stage 0 entity path still required
 - **Claim Ledger Stage 1** (additive foundation, all three editions)
   - Python: `Claim` model, `claims` table via `init_db`, `app/services/resolver.py` stub
   - PHP Host: `claims` DDL in `Database::migrate`, `Bkbs\Resolver` stub

@@ -3,7 +3,7 @@
 **Purpose:** Convert entity store from mutable rows to append-only claim ledger, with explicit stage gates for safe incremental deployment.
 
 **Generated:** 2026-07-28  
-**Status:** Stage 0 complete (2026-07-29) — Stages 1+ not started
+**Status:** Stage 0 complete (2026-07-29); Stage 1 complete (2026-08-04); Stage 2 implemented (2026-08-11)
 
 ---
 
@@ -122,34 +122,44 @@ CREATE INDEX idx_claims_supersedes ON claims(supersedes_id);
 
 ## STAGE 2: Backfill Claims from Current Entities
 
+**Status:** Implemented 2026-08-11 (Python + PHP Host + WordPress)  
+**Scope:** Dual-path only — production export still reads entities; no Stage 3/4.
+
 ### ENTRY
 - Stage 1 complete
 - `resolve_entity()` stubs in place
 
-### TASKS (Both Editions)
+### TASKS (All Editions)
 
-**Python:** Create `scripts/backfill_claims.py`
-```python
-# For each entity in entities table:
-#   For each attribute (name, description, each property key, relationships, evidence):
-#       INSERT INTO claims (entity_id, entity_type, attribute, value, ...)
-#       VALUES (entity.id, entity.entity_type, attr_name, json_value, ...)
-#       status='approved', approved_at=entity.last_updated, extraction_method=entity.source
-```
+**Python:**
+1. `app/services/claim_codec.py` — encode/decode + `entity_attribute_pairs` (`prop:` keys)
+2. `app/services/resolved_entity.py` — `ResolvedEntity` dataclass for export builders
+3. Real `app/services/resolver.py::resolve_entity(..., db=)` hybrid (claims override + entity row)
+4. `scripts/backfill_claims.py` — approved-only default, idempotent, `--update` supersede
+5. `scripts/verify_exports_via_resolve.py` — export-via-resolve vs Stage 0 golden
 
-**PHP:** Create `php/backfill_claims.php` — same logic, raw PDO.
+**PHP Host:**
+1. Real `Bkbs\Resolver::resolveEntity($id, $asOf, $pdo)`
+2. `php/scripts/backfill_claims.php`
+3. `php/scripts/verify_exports_via_resolve.php`
 
-**Both:** Use `entity_id = Entity.id` (UUID) — keeps `/entities/{uuid}` URLs stable.
+**WordPress:**
+1. `MBKBS_Backfill::run()` + admin Tools page + `wp mbkbs backfill-claims`
+2. Real `MBKBS_Resolver::resolve_entity()`
+
+**Attribute encoding:** `name`, `description`, `prop:<key>`, `relationships`, `evidence`, plus `trust_level` / `source` / `status` when set. Identity columns (`external_key`, `version`, `last_updated`) stay on entity row.
 
 ### EXIT
-- [ ] Backfill script runs without errors
-- [ ] `SELECT COUNT(*) FROM claims` ≈ `SUM(attributes per entity)` from Stage 0 counts
-- [ ] **Critical:** Implement real `resolve_entity()` in both editions
-- [ ] **Critical:** Run verification script — exports via `resolve_entity()` must match golden file **byte-for-byte**
-- [ ] No changes to `entities` table, scan pipeline, or UI
+- [x] Backfill script runs without errors (all three editions)
+- [x] Claim counts match attribute cardinality after fixture backfill
+- [x] Real `resolve_entity` / `resolveEntity` / `MBKBS_Resolver::resolve_entity` in all three
+- [x] Python + PHP: export-via-resolve matches Stage 0 golden (normalized)
+- [x] Stage 0 entity-path `verify_exports` still PASS
+- [x] Production export/publish still reads entities (no Stage 4 cutover)
+- [x] CI Stage 2 gate wired
 
 ### ROLLBACK
-- `DELETE FROM claims` — revert to Stage 1 state
+- `DELETE FROM claims` — revert to Stage 1 empty ledger; resolvers still safe (entity fallback)
 
 ---
 

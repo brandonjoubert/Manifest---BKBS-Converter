@@ -779,6 +779,28 @@ Open: https://YOURDOMAIN/bkbs/install.php
 6. Publish live  
 7. Open `https://yourdomain.com/llms.txt`  
 
+### Claim Ledger Stage 2 — one-time backfill (upgrade)
+
+After upgrading a database that already has approved entities, populate the
+append-only `claims` table once so Stage 2 resolve can reconstruct attributes.
+**Production export still reads entity rows** until a later stage; backfill is
+for ledger dual-path and verification.
+
+| Edition | Command / UI |
+|---------|----------------|
+| **Python** | `python scripts/backfill_claims.py --all-sites` (or `--site-id <uuid>`) |
+| **PHP Host** | `php php/scripts/backfill_claims.php --db=/path/to/bkbs.sqlite` |
+| **WordPress** | Admin → Manifest BKBS → **Tools** → Run backfill · or `wp mbkbs backfill-claims` |
+
+Flags: `--dry-run` (Python/PHP), `--include-pending`, `--update` (supersede on value change). Re-runs are idempotent when values match.
+
+Verify (Python/PHP goldens):
+
+```bash
+python scripts/verify_exports.py --edition all
+python scripts/verify_exports_via_resolve.py --edition all
+```
+
 ---
 
 ## Summary

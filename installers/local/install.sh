@@ -28,9 +28,11 @@ fi
 mkdir -p data/exports data/live data/live-public
 
 echo
-echo "Running smoke checks..."
+echo "Running smoke checks (pytest + Claim Ledger Stage 0/1/2)..."
 pytest -q
 python scripts/verify_exports.py --edition python
+python scripts/stage1_contract_check.py
+python scripts/verify_exports_via_resolve.py --edition python
 echo "Smoke checks passed."
 
 echo

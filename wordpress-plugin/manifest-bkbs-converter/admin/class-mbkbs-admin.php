@@ -26,6 +26,7 @@ final class MBKBS_Admin
         add_action('admin_post_mbkbs_publish', [$this, 'publish']);
         add_action('admin_post_mbkbs_add_site', [$this, 'add_site']);
         add_action('admin_post_mbkbs_manual_entity', [$this, 'manual_entity']);
+        add_action('admin_post_mbkbs_backfill_claims', [$this, 'backfill_claims']);
     }
 
     public function assets(string $hook): void
@@ -51,6 +52,40 @@ final class MBKBS_Admin
         add_submenu_page('mbkbs', __('Entities', 'manifest-bkbs'), __('Entities', 'manifest-bkbs'), 'manage_options', 'mbkbs-entities', [$this, 'page_entities']);
         add_submenu_page('mbkbs', __('Edit entity', 'manifest-bkbs'), __('Edit entity', 'manifest-bkbs'), 'manage_options', 'mbkbs-entity', [$this, 'page_entity_edit']);
         add_submenu_page('mbkbs', __('Settings', 'manifest-bkbs'), __('Settings', 'manifest-bkbs'), 'manage_options', 'mbkbs-settings', [$this, 'page_settings']);
+        add_submenu_page('mbkbs', __('Tools', 'manifest-bkbs'), __('Tools', 'manifest-bkbs'), 'manage_options', 'mbkbs-tools', [$this, 'page_tools']);
+    }
+
+    public function page_tools(): void
+    {
+        global $wpdb;
+        $claimsTable = MBKBS_Database::claims_table();
+        $claimCount = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$claimsTable}");
+        $approvedEntities = (int) $wpdb->get_var(
+            'SELECT COUNT(*) FROM ' . MBKBS_Database::entities_table() . " WHERE status = 'approved'"
+        );
+        include MBKBS_PLUGIN_DIR . 'admin/views/tools.php';
+    }
+
+    public function backfill_claims(): void
+    {
+        $this->assert_admin();
+        check_admin_referer('mbkbs_backfill_claims');
+        $update = !empty($_POST['update']);
+        $includePending = !empty($_POST['include_pending']);
+        $totals = MBKBS_Backfill::run([
+            'include_pending' => $includePending,
+            'update' => $update,
+            'dry_run' => false,
+        ]);
+        $msg = sprintf(
+            /* translators: 1: entities, 2: inserted, 3: skipped, 4: superseded */
+            __('Backfill complete: entities=%1$d inserted=%2$d skipped=%3$d superseded=%4$d', 'manifest-bkbs'),
+            (int) $totals['entities'],
+            (int) $totals['inserted'],
+            (int) $totals['skipped'],
+            (int) $totals['superseded']
+        );
+        $this->redirect('mbkbs-tools', $msg, false);
     }
 
     public function page_dashboard(): void

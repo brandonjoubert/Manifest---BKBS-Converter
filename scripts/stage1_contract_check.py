@@ -99,8 +99,9 @@ def check_php(contract: dict) -> None:
     res_src = resolver_path.read_text(encoding="utf-8")
     if "function resolveEntity" not in res_src:
         fail("php: resolveEntity method missing")
+    # Stage 2 still returns null for missing id / no PDO
     if "return null" not in res_src:
-        fail("php: resolveEntity stub should return null")
+        fail("php: resolveEntity must return null for unknown/missing entity")
 
     boot = (ROOT / "php" / "src" / "bootstrap.php").read_text(encoding="utf-8")
     if "Bkbs\\\\Resolver" not in boot and "Bkbs\\Resolver" not in boot:
@@ -181,7 +182,16 @@ def check_wordpress(contract: dict) -> None:
     if "function resolve_entity" not in res_src:
         fail("wordpress: resolve_entity method missing")
     if "return null" not in res_src:
-        fail("wordpress: stub should return null")
+        fail("wordpress: resolve_entity must return null for unknown/missing entity")
+    backfill = ROOT / "wordpress-plugin/manifest-bkbs-converter/includes/class-mbkbs-backfill.php"
+    if not backfill.is_file():
+        fail("wordpress: class-mbkbs-backfill.php missing (Stage 2)")
+    bf_src = backfill.read_text(encoding="utf-8")
+    if "class MBKBS_Backfill" not in bf_src or "function run" not in bf_src:
+        fail("wordpress: MBKBS_Backfill::run missing")
+    main_src_check = main_file.read_text(encoding="utf-8")
+    if "class-mbkbs-backfill.php" not in main_src_check:
+        fail("wordpress: main plugin must require backfill")
 
     main_src = main_file.read_text(encoding="utf-8")
     ver = re.search(r"define\(\s*'MBKBS_DB_VERSION'\s*,\s*'(\d+)'\s*\)", main_src)

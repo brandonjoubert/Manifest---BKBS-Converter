@@ -59,13 +59,21 @@ bkbs.yourdomain.com  document root  →  php/ folder
 
 ## After install (smoke)
 
-On a machine with PHP CLI (optional):
+On a machine with PHP CLI + `pdo_sqlite` (optional but recommended after clone):
 
 ```bash
+# Stage 0 — entity-path export matches golden
 php php/scripts/verify_exports.php
+
+# Stage 2 — backfill + real resolve matches same golden (packaged zip uses scripts/ under bkbs-php/)
+php php/scripts/verify_exports_via_resolve.php
+# or after extract: php scripts/verify_exports_via_resolve.php
+
+# One-shot backfill for existing approved entities (ledger dual-path; publish still uses entities)
+php php/scripts/backfill_claims.php --db=/path/to/data/bkbs.sqlite
 ```
 
-This checks the PHP publisher still matches the Stage 0 golden baseline (`test-fixtures/golden-v0-php/`).
+Requires monorepo layout (or mounted fixtures) for Stage 0/2 golden scripts. Shared-host install only needs `install.php` for day-to-day scan/publish.
 
 ## Security
 

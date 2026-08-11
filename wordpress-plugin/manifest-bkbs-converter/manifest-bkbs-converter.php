@@ -28,6 +28,7 @@ define('MBKBS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('MBKBS_DB_VERSION', '2');
 
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-database.php';
+require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-backfill.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-resolver.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-crawler.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-extractor.php';
@@ -39,7 +40,30 @@ register_activation_hook(__FILE__, ['MBKBS_Database', 'activate']);
 register_deactivation_hook(__FILE__, ['MBKBS_Plugin', 'deactivate']);
 
 add_action('plugins_loaded', static function (): void {
-    // Claim Ledger Stage 1: upgrade existing installs when DB version lags.
+    // Claim Ledger Stage 1+: upgrade existing installs when DB version lags.
     MBKBS_Database::maybe_upgrade();
     MBKBS_Plugin::instance()->init();
 });
+
+// WP-CLI: wp mbkbs backfill-claims [--include-pending] [--update] [--dry-run]
+if (defined('WP_CLI') && WP_CLI) {
+    WP_CLI::add_command(
+        'mbkbs backfill-claims',
+        static function (array $args, array $assoc_args): void {
+            $totals = MBKBS_Backfill::run([
+                'include_pending' => isset($assoc_args['include-pending']),
+                'update' => isset($assoc_args['update']),
+                'dry_run' => isset($assoc_args['dry-run']),
+            ]);
+            WP_CLI::success(
+                sprintf(
+                    'entities=%d inserted=%d skipped=%d superseded=%d',
+                    $totals['entities'],
+                    $totals['inserted'],
+                    $totals['skipped'],
+                    $totals['superseded']
+                )
+            );
+        }
+    );
+}

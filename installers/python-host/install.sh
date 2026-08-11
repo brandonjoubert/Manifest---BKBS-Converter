@@ -45,9 +45,11 @@ mkdir -p data/exports data/live data/live-public
 chmod 750 data 2>/dev/null || true
 
 echo
-echo "Running smoke checks..."
+echo "Running smoke checks (pytest + Claim Ledger Stage 0/1/2)..."
 pytest -q
 python scripts/verify_exports.py --edition python
+python scripts/stage1_contract_check.py
+python scripts/verify_exports_via_resolve.py --edition python
 echo "Smoke checks passed."
 
 echo
@@ -70,4 +72,7 @@ echo "   2. Add site + Web root = your real public_html path"
 echo "   3. Scan → Edit pending entities → Approve → Publish live"
 echo
 echo "Docs: INSTALL.md · deploy/SHARED_HOSTING.md · USER_MANUAL.md"
-echo "Baseline verify anytime: python scripts/verify_exports.py --edition python"
+echo "Baselines anytime:"
+echo "  python scripts/verify_exports.py --edition python"
+echo "  python scripts/stage1_contract_check.py"
+echo "  python scripts/verify_exports_via_resolve.py --edition python"
