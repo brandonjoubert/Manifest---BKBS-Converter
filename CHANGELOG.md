@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Docs for cloners:** README, INSTALL.md/txt, WordPress + PHP installer READMEs, test-fixtures, CONTRIBUTING, and USER_MANUAL now give a clear **pick one product** path, prerequisites, smoke/quality gates (Stage 0/1/2), and common failure fixes so a fresh clone can run any edition without guesswork.
+
 ### Added
 
 - **Claim Ledger Stage 2** (backfill + real resolve, all three editions; dual-path only)

@@ -2,7 +2,10 @@
 
 This guide walks you through installing and running **Manifest BKBS Converter** so you can scan a website, verify business knowledge, and publish agent-ready files (`llms.txt`, `graph.json`, schema.org JSON-LD, and more).
 
-There are **three supported deployment paths**. Choose **one** based on where you want the application to run.
+There are **four supported deployment paths** (three independent products). Choose **one** based on where you want the application to run.
+
+**After `git clone`:** start with the [README “After you clone”](./README.md#after-you-clone--pick-one-product) table, then follow the matching path below.  
+Plain-text card: [INSTALL.txt](./INSTALL.txt).
 
 ---
 
@@ -14,12 +17,15 @@ There are **three supported deployment paths**. Choose **one** based on where yo
 4. [Path A — Install on your own PC](#4-path-a--install-on-your-own-pc)  
 5. [Path B — Install on a Python-supported host](#5-path-b--install-on-a-python-supported-host)  
 6. [Path C — Install on a non-Python (PHP) host](#6-path-c--install-on-a-non-python-php-host)  
-7. [First use after installation (all paths)](#7-first-use-after-installation-all-paths)  
-8. [Publishing files to the live website](#8-publishing-files-to-the-live-website)  
-9. [Security checklist](#9-security-checklist)  
-10. [Troubleshooting](#10-troubleshooting)  
-11. [Feature comparison](#11-feature-comparison)  
-12. [Quick reference](#12-quick-reference)  
+7. [Path D — WordPress plugin](#7-path-d--wordpress-plugin)  
+8. [First use after installation (all paths)](#8-first-use-after-installation-all-paths)  
+9. [Publishing files to the live website](#9-publishing-files-to-the-live-website)  
+10. [Security checklist](#10-security-checklist)  
+11. [Troubleshooting](#11-troubleshooting)  
+12. [Feature comparison](#12-feature-comparison)  
+13. [Verify the monorepo (quality gates)](#13-verify-the-monorepo-quality-gates)  
+14. [Claim Ledger Stage 2 — one-time backfill](#14-claim-ledger-stage-2--one-time-backfill)  
+15. [Quick reference](#15-quick-reference)  
 
 ---
 
@@ -39,12 +45,13 @@ Add site → Scan website → Review/approve entities → Publish live
                               (llms.txt, graph.json, schema/, …)
 ```
 
-Two editions exist:
+Three **independent** products live in this monorepo (pick one for production):
 
-| Edition | Location in this project | Used by |
+| Product | Location in this project | Used by |
 |---------|--------------------------|---------|
 | **Python** (full) | Project root (`app/`, `run.sh`, `passenger_wsgi.py`) | Path A and Path B |
-| **PHP** (shared hosting) | `php/` folder / **`installers/php-host/bkbs-php-edition.zip`** (pre-built) | Path C |
+| **PHP Host** | `php/` · pre-built **`installers/php-host/bkbs-php-edition.zip`** | Path C |
+| **WordPress plugin** | `wordpress-plugin/` · pre-built **`manifest-bkbs-converter.zip`** | Path D |
 
 ---
 
@@ -62,9 +69,12 @@ Where will the application run?
 │     (VPS, Docker, cPanel “Setup Python App”, Cloud hosting)
 │     → PATH B — Python-supported host
 │
-└─ On shared web hosting with PHP only (no Python)?
-      (many cPanel accounts, HostGator-style shared, etc.)
-      → PATH C — Non-Python host (PHP edition)
+├─ On shared web hosting with PHP only (no Python)?
+│     (many cPanel accounts, HostGator-style shared, etc.)
+│     → PATH C — Non-Python host (PHP edition)
+│
+└─ On an existing WordPress site?
+      → PATH D — WordPress plugin
 ```
 
 | Your situation | Path |
@@ -75,8 +85,9 @@ Where will the application run?
 | cPanel / shared host **without** Python | **C** |
 | Only FTP access + PHP | **C** |
 | Docker available | **B** (run the Python edition in a container or on the host) |
+| WordPress already installed | **D** |
 
-If you are unsure whether your host has Python: look in cPanel for **“Setup Python App”** or **“Passenger”**. If it is missing and you only see PHP, use **Path C**.
+If you are unsure whether your host has Python: look in cPanel for **“Setup Python App”** or **“Passenger”**. If it is missing and you only see PHP, use **Path C**. If the site is WordPress, prefer **Path D**.
 
 ---
 
@@ -111,6 +122,15 @@ If you are unsure whether your host has Python: look in cPanel for **“Setup Py
 | Writable main site folder | e.g. `public_html` for live publish |
 | Optional: API key | Same as above |
 
+### Path D — WordPress
+
+| Requirement | Notes |
+|-------------|--------|
+| WordPress **6.0+** | Admin access to install plugins |
+| PHP **8.0+** | Same family as Path C |
+| Capability | User with `manage_options` (Administrator) |
+| Pre-built zip | `wordpress-plugin/manifest-bkbs-converter.zip` in the clone |
+
 ---
 
 ## 4. Path A — Install on your own PC
@@ -119,13 +139,18 @@ Use this to run Manifest BKBS Converter on **your computer**. You can scan publi
 
 ### A.1 Get the software
 
-Copy or clone the `bkbs-converter` project folder onto your PC.
+Clone this repository (or download a release tarball) onto your PC.
 
-Example:
+```bash
+git clone https://github.com/brandonjoubert/Manifest---BKBS-Converter.git
+cd Manifest---BKBS-Converter
+```
+
+Example paths:
 
 ```text
-/home/you/bkbs-converter     (Linux/macOS)
-C:\Users\you\bkbs-converter  (Windows)
+/home/you/Manifest---BKBS-Converter     (Linux/macOS)
+C:\Users\you\Manifest---BKBS-Converter  (Windows)
 ```
 
 ### A.2 Install — Linux or macOS
@@ -144,9 +169,14 @@ chmod +x installers/choose-install.sh installers/local/install.sh installers/pyt
 ./installers/local/install.sh
 ```
 
+**Success looks like:** the script ends with **`Smoke checks passed.`**  
+If it exits earlier with an error, fix that problem before starting the app (see [§11 Troubleshooting](#11-troubleshooting)).
+
 This will:
 
 - Create a Python virtual environment (`.venv`)  
+- Install Python dependencies  
+- Run **pytest** + Claim Ledger **Stage 0 / 1 / 2** smoke checks 
 - Install dependencies from `requirements.txt`  
 - Create `.env` from `.env.example` if needed  
 - Create the `data/` directories  
@@ -202,7 +232,7 @@ Select option **1** for Local PC.
 
 ### A.5 Local PC — what next?
 
-Continue with [§7 First use](#7-first-use-after-installation-all-paths).
+Continue with [§8 First use](#8-first-use-after-installation-all-paths).
 
 **Publishing from a PC:**
 
@@ -318,7 +348,7 @@ mkdir -p ~/bkbs-converter/data/exports ~/bkbs-converter/data/live
 
 #### Step 6 — Configure live publish
 
-See [§8](#8-publishing-files-to-the-live-website). Set web root to:
+See [§9](#9-publishing-files-to-the-live-website). Set web root to:
 
 ```text
 /home/USERNAME/public_html
@@ -430,7 +460,7 @@ sudo chown -R www-data:www-data /var/www/html
 
 ### B.3 After Path B install
 
-Continue with [§7 First use](#7-first-use-after-installation-all-paths) and [§8 Publishing](#8-publishing-files-to-the-live-website).
+Continue with [§8 First use](#8-first-use-after-installation-all-paths) and [§9 Publishing](#9-publishing-files-to-the-live-website).
 
 ---
 
@@ -546,16 +576,48 @@ If install fails with “not writable”:
 
 ### C.6 After Path C install
 
-Continue with [§7 First use](#7-first-use-after-installation-all-paths).  
+Continue with [§8 First use](#8-first-use-after-installation-all-paths).  
 Use **Publish live** so files go into the main `public_html` path you configured.
 
 More notes: [`installers/php-host/README.md`](./installers/php-host/README.md)
 
 ---
 
-## 7. First use after installation (all paths)
+## 7. Path D — WordPress plugin
 
-These steps are the same whether you used A, B, or C (labels may vary slightly in PHP vs Python UI).
+Use this when the public site **already runs WordPress**. You do not need the Python or PHP Host apps.
+
+### D.1 Install from the monorepo zip (error-free)
+
+1. From a clone or release, take:
+
+```text
+wordpress-plugin/manifest-bkbs-converter.zip
+```
+
+2. In WordPress admin: **Plugins → Add New → Upload Plugin**.  
+3. Choose that zip → **Install Now** → **Activate**.  
+4. Open the **Manifest BKBS** admin menu.
+
+Do **not** upload the entire monorepo as a plugin. Only the zip (or the inner `manifest-bkbs-converter/` folder under `wp-content/plugins/`).
+
+### D.2 First use
+
+Same product loop as other paths: Settings (optional LLM) → Scan → **Edit before approve** → Approve → **Publish live**.
+
+Optional claim backfill: **Manifest BKBS → Tools → Run backfill** after you have approved entities. Production publish still uses entity rows.
+
+Full WordPress product notes: [`wordpress-plugin/README.md`](./wordpress-plugin/README.md).
+
+### D.3 After Path D install
+
+Continue with [§8 First use](#8-first-use-after-installation-all-paths) (WordPress UI labels).
+
+---
+
+## 8. First use after installation (all paths)
+
+These steps are the same whether you used A, B, C, or D (labels may vary slightly by UI).
 
 ### Step 1 — Open the admin UI
 
@@ -564,6 +626,7 @@ These steps are the same whether you used A, B, or C (labels may vary slightly i
 | A Local | http://127.0.0.1:8765 |
 | B Python host | https://bkbs.yourdomain.com (or host-assigned URL) |
 | C PHP host | https://yourdomain.com/bkbs/ |
+| D WordPress | wp-admin → **Manifest BKBS** |
 
 ### Step 2 — Configure an LLM API key (strongly recommended)
 
@@ -587,7 +650,7 @@ Without an API key, scans only use **heuristics** (fewer, thinner entities).
 1. On the home page, **Add website** / create site.  
 2. **Display name** — for you (e.g. “Main company site”).  
 3. **Website URL** — public homepage, e.g. `https://www.example.com`.  
-4. **Web root path** — filesystem path where live files should be written (see §8).  
+4. **Web root path** — filesystem path where live files should be written (see [§9](#9-publishing-files-to-the-live-website)).  
 5. Enable **auto-publish** if available.  
 6. Save / create.
 
@@ -621,7 +684,7 @@ You should see content, not a 404 page.
 
 ---
 
-## 8. Publishing files to the live website
+## 9. Publishing files to the live website
 
 ### What gets written
 
@@ -665,7 +728,7 @@ Whenever the website content changes:
 
 ---
 
-## 9. Security checklist
+## 10. Security checklist
 
 - [ ] Database folder (`data/`) is **not** publicly listable or downloadable  
 - [ ] `.env` (Python) and `config.php` (PHP) are not served as public files  
@@ -677,43 +740,97 @@ Whenever the website content changes:
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Problem | Likely cause | What to do |
 |---------|--------------|------------|
-| `python3: command not found` | Python not installed | Install Python 3.10+ or use Path C |
+| `python3: command not found` | Python not installed | Install Python 3.10+ or use Path C / D |
 | `pip install` fails | Old pip / no venv / network | Use project venv; upgrade pip; check firewall |
+| Installer smoke fails | Broken deps / missing fixtures | Run commands in [§13](#13-verify-the-monorepo-quality-gates) one by one; do not ignore failures |
+| `ModuleNotFoundError: claim_codec` | Incomplete tree / old clone | Pull latest `main`; ensure Stage 2 files are present |
 | Browser cannot open :8765 | App not running / wrong host | Start uvicorn; check firewall; use 127.0.0.1 locally |
 | cPanel Python app 502 / error | Missing packages or wrong entrypoint | `pip install -r requirements.txt`; startup file `passenger_wsgi.py`; entry `application`; Restart app |
 | PHP install: PDO SQLite NO | Extension disabled | Enable `pdo_sqlite` in Select PHP Version |
 | PHP install: cannot write config | Folder permissions | Temporarily allow write on app folder; ensure `data/` writable |
+| PHP zip extract: no `install.php` | Wrong folder level | Extract so `install.php` is at the app root (`bkbs/`), not nested an extra level |
 | Scan returns few entities | No LLM key | Configure Settings → API key → rescan |
 | Publish: no web root | Path not set | Set site web root / default publish root |
 | Publish: not writable | Permissions | Fix ownership of `public_html` for the app user |
 | `llms.txt` 404 after publish | Wrong web root | Publish path must be the real document root for the domain |
 | LLM test fails | Bad key/URL/model | Check base URL ends with `/v1` style path your provider documents; verify model name |
+| WP plugin not listed | Wrong zip | Use `wordpress-plugin/manifest-bkbs-converter.zip` only |
+| WP rewrite 404 | Permalinks | Settings → Permalinks → Save; or enable static file write on publish |
+| Backfill inserts 0 | No approved entities | Approve at least one entity, then run backfill again |
 
 ---
 
-## 11. Feature comparison
+## 12. Feature comparison
 
-| Feature | Path A/B Python | Path C PHP |
-|---------|-----------------|------------|
-| Scan website | Yes | Yes |
-| Heuristic extraction | Yes | Yes |
-| LLM extraction (OpenAI-compatible) | Yes | Yes |
-| Approve / reject entities | Yes | Yes |
-| Manual entry | Yes | Yes |
-| Publish live to web root | Yes | Yes |
-| Export ZIP download | Yes | Not primary (publish live instead) |
-| Full entity JSON editor | Yes | Basic |
-| Background long scans | Async worker | Runs in request (use moderate max pages) |
+| Feature | Path A/B Python | Path C PHP | Path D WordPress |
+|---------|-----------------|------------|------------------|
+| Scan website | Yes | Yes | Yes |
+| Heuristic extraction | Yes | Yes | Yes |
+| LLM extraction (OpenAI-compatible) | Yes | Yes | Yes |
+| Approve / reject entities | Yes | Yes | Yes |
+| Manual entry | Yes | Yes | Yes |
+| Publish live to web root | Yes | Yes | Rewrites + optional static write |
+| Export ZIP download | Yes | Not primary (publish live instead) | No (publish live) |
+| Full entity JSON editor | Yes | Basic | Form editor |
+| Background long scans | Async worker | Runs in request (use moderate max pages) | Request-scoped |
+| Claim backfill (Stage 2) | CLI | CLI | Admin Tools / WP-CLI |
 
-Both editions produce the **same style of public machine files** for AI agents.
+All products produce the **same style of public machine files** for AI agents (`llms.txt`, `graph.json`, schema.org, …).
 
 ---
 
-## 12. Quick reference
+## 13. Verify the monorepo (quality gates)
+
+Run these from a **clone root** after `pip install -r requirements.txt` (Python installers run the Python subset automatically).
+
+| Gate | Command | Proves |
+|------|---------|--------|
+| Unit tests | `pytest -q` | Core Python behavior |
+| **Stage 0** | `python scripts/verify_exports.py --edition all` | Entity-path exports match goldens (Python + PHP if `php` available) |
+| **Stage 1** | `python scripts/stage1_contract_check.py` | Claims schema + resolver modules in **all three** editions |
+| **Stage 2** | `python scripts/verify_exports_via_resolve.py --edition all` | Backfill + real resolve match goldens |
+
+```bash
+pytest -q
+python scripts/verify_exports.py --edition all
+python scripts/stage1_contract_check.py
+python scripts/verify_exports_via_resolve.py --edition all
+```
+
+**PHP notes:** Stage 0/2 PHP steps need the `php` CLI. Stage 2 PHP via-resolve needs **`pdo_sqlite`**. Without them, local checks may skip PHP portions; CI and the PHP harness image still enforce them.
+
+**What “error-free product use” does *not* require:** running backfill. Day-to-day scan → approve → publish works with empty claims. Backfill is for the claim ledger dual-path ([§14](#14-claim-ledger-stage-2--one-time-backfill)).
+
+See also [test-fixtures/README.md](./test-fixtures/README.md).
+
+---
+
+## 14. Claim Ledger Stage 2 — one-time backfill
+
+After upgrading a database that already has **approved** entities, you may populate the append-only `claims` table once so Stage 2 resolve can reconstruct attributes.
+
+**Production export / publish still reads entity rows** until a later stage; backfill is ledger dual-path and verification, not required for first-time empty installs.
+
+| Edition | Command / UI |
+|---------|----------------|
+| **Python** | `python scripts/backfill_claims.py --all-sites` (or `--site-id <uuid>`) |
+| **PHP Host** | `php php/scripts/backfill_claims.php --db=/path/to/data/bkbs.sqlite` |
+| **WordPress** | Admin → Manifest BKBS → **Tools** → Run backfill · or `wp mbkbs backfill-claims` |
+
+Flags (Python/PHP): `--dry-run`, `--include-pending`, `--update` (supersede on value change). Re-runs are idempotent when values match.
+
+```bash
+python scripts/verify_exports.py --edition all
+python scripts/verify_exports_via_resolve.py --edition all
+```
+
+---
+
+## 15. Quick reference
 
 ### One-liner by path
 
@@ -747,6 +864,13 @@ Extract into: public_html/bkbs/
 Open: https://YOURDOMAIN/bkbs/install.php
 ```
 
+**D — WordPress**
+
+```text
+Upload: wordpress-plugin/manifest-bkbs-converter.zip
+wp-admin → Plugins → Upload → Activate → Manifest BKBS
+```
+
 ### Interactive menu
 
 ```bash
@@ -757,60 +881,45 @@ Open: https://YOURDOMAIN/bkbs/install.php
 
 | File | Purpose |
 |------|---------|
+| `README.md` | Clone → pick one product |
 | `INSTALL.md` | This document |
-| `installers/local/install.sh` / `install.bat` | PC install |
-| `installers/python-host/install.sh` | Server Python install |
+| `INSTALL.txt` | Plain-text quick card |
+| `installers/local/install.sh` / `install.bat` | PC install (+ Stage 0/1/2 smoke) |
+| `installers/python-host/install.sh` | Server Python install (+ same smoke) |
 | `installers/php-host/bkbs-php-edition.zip` | **Pre-built PHP package to upload** |
 | `installers/php-host/package.sh` | Rebuild PHP zip after source changes |
 | `installers/php-host/README.md` | PHP upload notes |
+| `wordpress-plugin/manifest-bkbs-converter.zip` | **Pre-built WP package to upload** |
+| `wordpress-plugin/README.md` | WordPress product docs |
 | `deploy/SHARED_HOSTING.md` | Deep dive for Python shared/cPanel |
 | `passenger_wsgi.py` | cPanel Python entrypoint |
 | `php/install.php` | PHP web installer |
-| `USER_MANUAL.md` | How to use the product day to day |
-| `README.md` | Project overview |
+| `USER_MANUAL.md` | How to use Python/PHP apps day to day |
+| `test-fixtures/README.md` | Quality gates Stage 0/1/2 |
 
 ### After install — 60-second checklist
 
 1. Open admin URL  
 2. Settings → API key → Test  
-3. Add site + web root  
+3. Add site + web root (Python/PHP)  
 4. Scan  
 5. Approve entities  
 6. Publish live  
 7. Open `https://yourdomain.com/llms.txt`  
 
-### Claim Ledger Stage 2 — one-time backfill (upgrade)
-
-After upgrading a database that already has approved entities, populate the
-append-only `claims` table once so Stage 2 resolve can reconstruct attributes.
-**Production export still reads entity rows** until a later stage; backfill is
-for ledger dual-path and verification.
-
-| Edition | Command / UI |
-|---------|----------------|
-| **Python** | `python scripts/backfill_claims.py --all-sites` (or `--site-id <uuid>`) |
-| **PHP Host** | `php php/scripts/backfill_claims.php --db=/path/to/bkbs.sqlite` |
-| **WordPress** | Admin → Manifest BKBS → **Tools** → Run backfill · or `wp mbkbs backfill-claims` |
-
-Flags: `--dry-run` (Python/PHP), `--include-pending`, `--update` (supersede on value change). Re-runs are idempotent when values match.
-
-Verify (Python/PHP goldens):
-
-```bash
-python scripts/verify_exports.py --edition all
-python scripts/verify_exports_via_resolve.py --edition all
-```
+Claim backfill (optional): [§14](#14-claim-ledger-stage-2--one-time-backfill).
 
 ---
 
 ## Summary
 
-| Deploy on… | Install path | Edition |
+| Deploy on… | Install path | Product |
 |------------|--------------|---------|
 | **Your own PC** | Path **A** | Python |
 | **Python-supported host** | Path **B** | Python |
-| **Non-Python shared host** | Path **C** | PHP |
+| **Non-Python shared host** | Path **C** | PHP Host zip |
+| **WordPress site** | Path **D** | WordPress plugin zip |
 
 Pick the path that matches your environment, follow that section step by step, then complete **First use** and **Publish** so AI agents can discover your business knowledge on your live domain.
 
-For day-to-day product usage (entity types, verification, rescans), see **[USER_MANUAL.md](./USER_MANUAL.md)**.
+For day-to-day product usage (entity types, verification, rescans), see **[USER_MANUAL.md](./USER_MANUAL.md)** (Python/PHP) or **[wordpress-plugin/README.md](./wordpress-plugin/README.md)**.

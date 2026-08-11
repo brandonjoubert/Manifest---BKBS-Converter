@@ -48,4 +48,5 @@ echo
 echo "Workflow: Add site → Scan → Edit pending entities → Approve → Publish live"
 echo "Local demo publish root: $ROOT/data/live-public"
 echo
-echo "Docs: INSTALL.md · USER_MANUAL.md · test-fixtures/README.md (Stage 0 baseline)"
+echo "Docs: README.md · INSTALL.md · USER_MANUAL.md · test-fixtures/README.md"
+echo "Next: open http://127.0.0.1:8765 → Settings → Add site → Scan → Approve → Publish"

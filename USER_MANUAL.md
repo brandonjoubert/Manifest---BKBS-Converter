@@ -3,6 +3,13 @@
 **Version:** 1.0  
 **Audience:** Business owners, marketing/ops staff, and web managers who want their website to work for both people *and* AI agents.
 
+**Install first:** This manual assumes the **Python** or **PHP Host** converter is already installed.  
+Clone/install paths: **[README.md](./README.md)** · **[INSTALL.md](./INSTALL.md)** · quick card **[INSTALL.txt](./INSTALL.txt)**.  
+**WordPress** users: use **[wordpress-plugin/README.md](./wordpress-plugin/README.md)** (separate UI; same publish goals).
+
+**Daily loop:** Settings (optional LLM) → Add site → Scan → **Edit before approve** → Approve → Publish live → check `/llms.txt`.  
+Only **approved** entities are published. Claim-ledger backfill is optional (see INSTALL.md §14); it is not required for normal publishing.
+
 ---
 
 ## 1. What problem does this solve?

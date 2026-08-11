@@ -1,20 +1,30 @@
 BKBS CONVERTER — INSTALLATION QUICK CARD
 ========================================
 Full guide: open INSTALL.md in this folder.
+Overview:     README.md
+WordPress:    wordpress-plugin/README.md
 
-WHICH PATH?
------------
+WHICH PATH? (pick ONE product)
+------------------------------
 A) Your own PC (Windows/Mac/Linux)     → Python edition
 B) Host WITH Python (VPS / cPanel
    "Setup Python App")                 → Python edition
-C) Host WITHOUT Python (PHP shared)    → PHP edition
+C) Host WITHOUT Python (PHP shared)    → PHP edition zip
+D) Existing WordPress site             → WordPress plugin zip
 
 
-A) LOCAL PC
------------
+CLONE
+-----
+  git clone https://github.com/brandonjoubert/Manifest---BKBS-Converter.git
+  cd Manifest---BKBS-Converter
+
+
+A) LOCAL PC (Python)
+--------------------
 Linux/macOS:
   chmod +x installers/local/install.sh run.sh
   ./installers/local/install.sh
+     → must print "Smoke checks passed"
   source .venv/bin/activate
   ./run.sh
   Open: http://127.0.0.1:8765
@@ -25,10 +35,12 @@ Windows:
   uvicorn app.main:app --host 127.0.0.1 --port 8765
   Open: http://127.0.0.1:8765
 
+Needs: Python 3.10+
+
 
 B) PYTHON HOST
 --------------
-1. Upload whole bkbs-converter folder (prefer outside public_html).
+1. Upload/clone the monorepo (prefer outside public_html).
 2. Either:
    cPanel → Setup Python App
      Startup file: passenger_wsgi.py
@@ -37,6 +49,7 @@ B) PYTHON HOST
      Restart the Python app.
    OR VPS:
      ./installers/python-host/install.sh
+        → must print "Smoke checks passed"
      source .venv/bin/activate
      uvicorn app.main:app --host 127.0.0.1 --port 8765
      (use systemd + Nginx reverse proxy for production)
@@ -46,7 +59,7 @@ B) PYTHON HOST
 
 C) NON-PYTHON (PHP) HOST
 ------------------------
-Pre-built package (already in the project):
+Pre-built package (already in the clone):
   installers/php-host/bkbs-php-edition.zip
 
 On the host:
@@ -54,18 +67,30 @@ On the host:
   2. Upload installers/php-host/bkbs-php-edition.zip
   3. Extract so install.php is in that folder
   4. Browser: https://YOURDOMAIN/bkbs/install.php
-  5. Set default web root to /home/USER/public_html
+  5. Set default web root to /home/USER/public_html  (real path, not a placeholder)
   6. Install → open app → Scan → Approve → Publish live
 
-Needs PHP with: pdo_sqlite, curl, json
+Needs PHP 8+ with: pdo_sqlite, curl, json
 
 Rebuild zip (only if PHP source changed):
   ./installers/php-host/package.sh
 
 
+D) WORDPRESS
+------------
+Pre-built package (already in the clone):
+  wordpress-plugin/manifest-bkbs-converter.zip
+
+  1. wp-admin → Plugins → Upload → that zip → Activate
+  2. Manifest BKBS → Scan → Edit before approve → Approve → Publish
+  3. Optional: Tools → Run backfill (claim ledger after you have approved entities)
+
+Details: wordpress-plugin/README.md
+
+
 AFTER ANY INSTALL
 -----------------
-1. Settings → add OpenAI-compatible API key → Test
+1. Settings → add OpenAI-compatible API key → Test  (optional but recommended)
 2. Add site (public URL + web root path)
 3. Scan website
 4. Edit pending entities if needed (Edit before approve)
@@ -73,10 +98,26 @@ AFTER ANY INSTALL
 6. Publish live
 7. Check https://YOURDOMAIN/llms.txt
 
-SMOKE / BASELINE (dev machine)
-------------------------------
-  python scripts/verify_exports.py --edition all
+Only APPROVED entities are published.
+
+
+SMOKE / BASELINE (monorepo root, after pip install)
+--------------------------------------------------
   pytest -q
+  python scripts/verify_exports.py --edition all
+  python scripts/stage1_contract_check.py
+  python scripts/verify_exports_via_resolve.py --edition all
+
+Python installers run the Python edition of these automatically.
+PHP CLI checks need the php binary; Stage 2 PHP needs pdo_sqlite.
+
+
+CLAIM LEDGER BACKFILL (optional upgrade)
+----------------------------------------
+Production publish still reads entity rows.
+  Python:  python scripts/backfill_claims.py --all-sites
+  PHP:     php php/scripts/backfill_claims.php --db=/path/to/data/bkbs.sqlite
+  WP:      Manifest BKBS → Tools → Run backfill
 
 
 INTERACTIVE MENU (Linux/macOS)
@@ -86,7 +127,10 @@ INTERACTIVE MENU (Linux/macOS)
 
 HELP
 ----
+README.md           Clone + pick a product
 INSTALL.md          Complete instructions
-USER_MANUAL.md      How to use the product
-deploy/SHARED_HOSTING.md   Python cPanel/VPS detail
-installers/php-host/README.md   PHP upload detail
+USER_MANUAL.md      How to use Python/PHP apps day to day
+wordpress-plugin/README.md
+installers/php-host/README.md
+test-fixtures/README.md   Quality gates Stage 0/1/2
+deploy/SHARED_HOSTING.md  Python cPanel/VPS detail

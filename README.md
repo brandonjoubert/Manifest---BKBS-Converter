@@ -20,21 +20,135 @@ Manifest BKBS is a monorepo of tools that help you:
 
 ---
 
-## Products
+## After you clone — pick **one** product
 
-| Product | Best for | Start here |
-|---------|----------|------------|
-| **Python Converter** | Local PC, VPS, cPanel Python App | [`app/`](./app/) · [INSTALL.md](./INSTALL.md) (Paths A–B) |
-| **PHP Host Converter** | Shared hosting without Python | [`php/`](./php/) · zip in [`installers/php-host/`](./installers/php-host/) |
-| **WordPress Plugin** | Existing WordPress sites | [`wordpress-plugin/`](./wordpress-plugin/) · [plugin README](./wordpress-plugin/README.md) |
+These are **independent runtimes**. Use **one** path for production (you do not need all three).
 
-All products share the **BKBS** idea and the same public file goals.  
-They are **independent runtimes** — pick one path, not all three.
+| Product | Best for | Prerequisites | Start here |
+|---------|----------|---------------|------------|
+| **Python Converter** | Local PC, VPS, cPanel Python App | Python **3.10+**, pip, network | [§ Python](#1-python-converter-local-or-python-host) |
+| **PHP Host Converter** | Shared hosting **without** Python | PHP **8.0+** with **`pdo_sqlite`**, `curl`, `json` | [§ PHP](#2-php-host-converter-shared-hosting) |
+| **WordPress Plugin** | Existing WordPress sites | WordPress **6.0+**, PHP **8.0+** | [§ WordPress](#3-wordpress-plugin) |
+
+**Full deploy guide (all paths, screenshots-level detail):** **[INSTALL.md](./INSTALL.md)**  
+**Day-to-day product use (Python/PHP apps):** **[USER_MANUAL.md](./USER_MANUAL.md)**  
+**WordPress-only product docs:** **[wordpress-plugin/README.md](./wordpress-plugin/README.md)**
+
+```text
+git clone https://github.com/brandonjoubert/Manifest---BKBS-Converter.git
+cd Manifest---BKBS-Converter
+```
+
+Interactive chooser (Linux/macOS):
+
+```bash
+chmod +x installers/*.sh installers/*/*.sh run.sh 2>/dev/null || true
+./installers/choose-install.sh
+```
+
+---
+
+### 1) Python Converter (local or Python host)
+
+```bash
+# Local PC
+./installers/local/install.sh
+source .venv/bin/activate
+./run.sh
+# → http://127.0.0.1:8765
+```
+
+```bash
+# VPS / Python host (after upload or on the clone)
+./installers/python-host/install.sh
+# then uvicorn or cPanel Setup Python App → passenger_wsgi.py / application
+```
+
+The installers **must finish with “Smoke checks passed”**. They run:
+
+1. `pytest -q`  
+2. Stage 0 export golden check  
+3. Stage 1 claim-ledger contract (all three editions, static where needed)  
+4. Stage 2 export-via-resolve golden check  
+
+If any step fails, **do not** treat the install as ready — fix the error (or open an issue) before scanning real sites.
+
+**Workflow:** Settings (optional LLM key) → Add site → Scan → **Edit before approve** → Approve → Publish live.
+
+---
+
+### 2) PHP Host Converter (shared hosting)
+
+**Use the pre-built zip** (already in the clone — do not invent a new package unless you changed PHP source):
+
+```text
+installers/php-host/bkbs-php-edition.zip
+```
+
+1. Create `public_html/bkbs/` (or a subdomain docroot).  
+2. Upload and extract the zip so **`install.php`** is in that folder.  
+3. Browser: `https://YOURDOMAIN/bkbs/install.php`  
+4. Set **default web root** to the **real** site path (e.g. `/home/YOURUSER/public_html` — not a placeholder).  
+5. Install → Settings (optional LLM) → Add site → Scan → Approve → Publish live.  
+
+**Required PHP extensions:** `pdo_sqlite`, `curl`, `json`.  
+Enable them in cPanel “Select PHP Version → Extensions” if install reports PDO SQLite missing.
+
+Details: **[installers/php-host/README.md](./installers/php-host/README.md)** · INSTALL.md Path C.
+
+---
+
+### 3) WordPress plugin
+
+**Use the pre-built zip** from the clone:
+
+```text
+wordpress-plugin/manifest-bkbs-converter.zip
+```
+
+1. wp-admin → **Plugins → Add New → Upload Plugin** → choose that zip.  
+2. **Activate** “Manifest BKBS Converter”.  
+3. Admin menu **Manifest BKBS** → Scan → **Edit before approve** → Approve → **Publish live**.  
+
+Public after publish: `/llms.txt`, `/graph.json`, `/schema/organization.jsonld`, etc.
+
+**Upgrade / claim ledger (optional):** **Manifest BKBS → Tools → Run backfill** after you already have approved entities. Production publish still uses entity rows until a later stage.
+
+Details: **[wordpress-plugin/README.md](./wordpress-plugin/README.md)**
+
+---
+
+## Verify the clone (developers / CI parity)
+
+From the **monorepo root** (Python venv recommended):
+
+```bash
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+pytest -q
+python scripts/verify_exports.py --edition all          # Stage 0 — entity-path exports
+python scripts/stage1_contract_check.py                 # Stage 1 — claims schema + stubs (all editions)
+python scripts/verify_exports_via_resolve.py --edition all  # Stage 2 — backfill + resolve vs goldens
+```
+
+| Gate | What it proves |
+|------|----------------|
+| **Stage 0** | Published file shapes still match frozen goldens |
+| **Stage 1** | `claims` table / DDL / resolver modules exist in Python, PHP, and WordPress |
+| **Stage 2** | Backfill + real resolve reconstruct the same exports (dual-path; production still reads entities) |
+
+PHP golden checks need the `php` CLI; Stage 2 PHP via-resolve needs **`pdo_sqlite`**. Without them, those steps skip or fail clearly — install the extension for full PHP verification.
+
+More: **[test-fixtures/README.md](./test-fixtures/README.md)** · **[CLAIM_LEDGER_IMPLEMENTATION_PLAN.md](./CLAIM_LEDGER_IMPLEMENTATION_PLAN.md)**
+
+---
+
+## Products (layout)
 
 ```text
                     ┌─────────────────────────────────────┐
                     │     Manifest BKBS Ecosystem         │
-                    │  dual-purpose web presence tools    │
                     └──────────────┬──────────────────────┘
            ┌───────────────────────┼───────────────────────┐
            ▼                       ▼                       ▼
@@ -42,57 +156,14 @@ They are **independent runtimes** — pick one path, not all three.
          app/                     php/            wordpress-plugin/
 ```
 
----
-
-## WordPress plugin (quick path)
-
-For site owners who already run WordPress:
-
-1. Download **`wordpress-plugin/manifest-bkbs-converter.zip`**  
-   (or from a [GitHub Release](https://github.com/brandonjoubert/Manifest---BKBS-Converter/releases) when tagged as a plugin asset)  
-2. wp-admin → **Plugins → Upload** → Activate  
-3. Open **Manifest BKBS** → Scan → **Edit before approve** → Approve → Publish  
-
-Public machine URLs after publish:
-
-- `https://yoursite.com/llms.txt`  
-- `https://yoursite.com/graph.json`  
-
-Plugin-only docs: **[wordpress-plugin/README.md](./wordpress-plugin/README.md)**  
-(WordPress edition does **not** require the Python or PHP Host apps.)
-
----
-
-## Python & PHP Host converters
-
-**Full install guide (PC / Python host / PHP host):**
-
-### → [INSTALL.md](./INSTALL.md) ←
-
-| Deploy on… | Path | Action |
-|------------|------|--------|
-| Your PC | A | `./installers/local/install.sh` |
-| Python host | B | `./installers/python-host/install.sh` or cPanel + `passenger_wsgi.py` |
-| PHP-only host | C | Upload `installers/php-host/bkbs-php-edition.zip` → `install.php` |
-
-```bash
-./installers/choose-install.sh
-```
-
-Product usage (Python/PHP Host apps): [USER_MANUAL.md](./USER_MANUAL.md)
-
----
-
-## Why this is an ecosystem, not one app
-
 | Concern | Approach in this repo |
 |---------|------------------------|
 | Different hosts | Different **products** (Python / PHP Host / WordPress) |
 | Same standard | Shared BKBS goals and publish surface |
-| Quality | Shared CI, Stage 0 fixtures, claim ledger roadmap |
-| Community | One monorepo, product labels on issues, multi-asset releases |
+| Quality | CI + Stage 0/1/2 gates + installer smoke |
+| Community | One monorepo, product labels on issues |
 
-See **[ECOSYSTEM.md](./ECOSYSTEM.md)** for layout, release naming, and how to publish the WordPress plugin without looking like a “random folder in an app repo.”
+See **[ECOSYSTEM.md](./ECOSYSTEM.md)** for release naming and how to present the WordPress plugin.
 
 ---
 
@@ -100,36 +171,38 @@ See **[ECOSYSTEM.md](./ECOSYSTEM.md)** for layout, release naming, and how to pu
 
 | Doc | Role |
 |-----|------|
-| [ECOSYSTEM.md](./ECOSYSTEM.md) | Monorepo / product map / GitHub presentation |
-| [INSTALL.md](./INSTALL.md) | Python & PHP Host deploy |
-| [USER_MANUAL.md](./USER_MANUAL.md) | Operating the Python/PHP Host converters |
-| [wordpress-plugin/README.md](./wordpress-plugin/README.md) | WordPress product only |
-| [ROADMAP.md](./ROADMAP.md) | Future work |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Technical overview |
-| [CLAIM_LEDGER_IMPLEMENTATION_PLAN.md](./CLAIM_LEDGER_IMPLEMENTATION_PLAN.md) | Planned architecture upgrade (staged) |
+| **[INSTALL.md](./INSTALL.md)** | Complete install for PC / Python host / PHP host / WordPress |
+| **[INSTALL.txt](./INSTALL.txt)** | Short plain-text install card |
+| **[USER_MANUAL.md](./USER_MANUAL.md)** | Operating Python / PHP Host converters |
+| **[wordpress-plugin/README.md](./wordpress-plugin/README.md)** | WordPress product only |
+| **[installers/php-host/README.md](./installers/php-host/README.md)** | PHP upload package |
+| **[test-fixtures/README.md](./test-fixtures/README.md)** | Quality gates (Stage 0/1/2) |
+| **[ROADMAP.md](./ROADMAP.md)** | Future work |
+| **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** | Technical overview |
+| **[CLAIM_LEDGER_IMPLEMENTATION_PLAN.md](./CLAIM_LEDGER_IMPLEMENTATION_PLAN.md)** | Claim ledger staged migration |
 
 ---
 
-## Quick start (Python, local)
+## Common clone / install mistakes
 
-```bash
-git clone https://github.com/brandonjoubert/Manifest---BKBS-Converter.git
-cd Manifest---BKBS-Converter
-./installers/local/install.sh
-source .venv/bin/activate
-./run.sh
-```
-
-Open **http://127.0.0.1:8765**
+| Mistake | Fix |
+|---------|-----|
+| Expecting one process to run all three products | Pick **one** edition for production |
+| Uploading raw `php/` without extract layout | Extract so **`install.php` is at the app root** |
+| PHP without `pdo_sqlite` | Enable extension; re-run install |
+| Building WP zip from wrong folder | Use committed **`wordpress-plugin/manifest-bkbs-converter.zip`** |
+| Skipping installer smoke failures | Fix until “Smoke checks passed” |
+| Publishing without approving entities | Only **approved** entities go to production exports |
+| Setting web root to the admin app folder | Web root = **public site** document root (`public_html`) |
 
 ---
 
 ## Status
 
 **v0.1** — usable products for real sites.  
-Agent-era web presence is early; feedback and contributions welcome.
+Claim Ledger **Stage 0–2** are in-tree (baselines, claims table, backfill + dual-path resolve). Production publish still uses **entity rows**; backfill is optional ledger prep.
 
-- [Open an issue](https://github.com/brandonjoubert/Manifest---BKBS-Converter/issues/new/choose) (choose product when relevant)  
+- [Open an issue](https://github.com/brandonjoubert/Manifest---BKBS-Converter/issues/new/choose)  
 - [Contributing](./CONTRIBUTING.md) · [Code of Conduct](./CODE_OF_CONDUCT.md) · [Security](./SECURITY.md)
 
 ## License

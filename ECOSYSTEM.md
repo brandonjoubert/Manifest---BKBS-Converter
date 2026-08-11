@@ -24,7 +24,7 @@ It is **not** a single-purpose app folder. Multiple **products** share one stand
 | **Manifest BKBS Converter (PHP Host)** | `php/` | Shared hosting without Python | PHP 8 |
 | **Manifest BKBS Converter (WordPress)** | `wordpress-plugin/` | WordPress site owners | WP plugin |
 | **Installers & packages** | `installers/`, zips | Operators | Shell / upload |
-| **Fixtures & baselines** | `test-fixtures/`, `scripts/` | Maintainers / CI | Stage 0+ quality gates |
+| **Fixtures & baselines** | `test-fixtures/`, `scripts/` | Maintainers / CI | Stage 0/1/2 quality gates (see test-fixtures/README.md) |
 
 All products aim at the **same publish surface**:
 

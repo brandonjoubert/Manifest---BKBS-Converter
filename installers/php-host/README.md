@@ -30,7 +30,7 @@ public_html/bkbs/          ← recommended subdirectory
   .htaccess
   src/
   templates/
-  scripts/                 ← Stage 0 verify helpers (optional on host)
+  scripts/                 ← Stage 0/2 verify + backfill CLIs (optional on host)
   data/
 ```
 

@@ -11,7 +11,7 @@ echo
 echo "  1) Local PC (Python)     — develop / run on your computer"
 echo "  2) Python-enabled host   — VPS or cPanel Python App"
 echo "  3) Non-Python host       — shared hosting PHP edition"
-echo "  4) Verify baselines only — Stage 0 export checks (Python + PHP)"
+echo "  4) Verify baselines only — pytest + Stage 0/1/2 (Python + PHP if available)"
 echo "  5) Show docs only"
 echo
 read -r -p "Enter 1-5: " choice
