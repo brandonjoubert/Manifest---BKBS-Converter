@@ -209,4 +209,130 @@ final class MBKBS_Backfill
         }
         return $raw;
     }
+
+    /**
+     * Stage 3: scan pairs omit status.
+     *
+     * @param array<string, mixed> $entity
+     * @return list<array{0:string,1:string}>
+     */
+    public static function scan_attribute_pairs(array $entity): array
+    {
+        $out = [];
+        foreach (self::entity_attribute_pairs($entity) as [$attr, $value]) {
+            if ($attr === 'status') {
+                continue;
+            }
+            $out[] = [$attr, $value];
+        }
+        return $out;
+    }
+
+    /** @return array<string, mixed>|null */
+    public static function latest_claim(string $entity_id, string $attribute, string $status): ?array
+    {
+        global $wpdb;
+        $claims = MBKBS_Database::claims_table();
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$claims} WHERE entity_id = %s AND attribute = %s AND status = %s ORDER BY id DESC LIMIT 1",
+                $entity_id,
+                $attribute,
+                $status
+            ),
+            ARRAY_A
+        );
+        return is_array($row) ? $row : null;
+    }
+
+    public static function insert_pending_claim(
+        string $entity_id,
+        string $entity_type,
+        string $attribute,
+        string $value,
+        string $extraction_method = 'scan'
+    ): int {
+        global $wpdb;
+        $claims = MBKBS_Database::claims_table();
+        $approved = self::latest_claim($entity_id, $attribute, 'approved');
+        $pending = self::latest_claim($entity_id, $attribute, 'pending');
+        $supersedesId = null;
+        if ($approved) {
+            $supersedesId = (int) $approved['id'];
+        }
+        if ($pending) {
+            $wpdb->update($claims, ['status' => 'superseded'], ['id' => (int) $pending['id']]);
+            if ($supersedesId === null) {
+                $supersedesId = (int) $pending['id'];
+            }
+        }
+        $now = current_time('mysql', true);
+        $row = [
+            'entity_id' => $entity_id,
+            'entity_type' => $entity_type,
+            'attribute' => $attribute,
+            'value' => $value,
+            'extraction_method' => substr($extraction_method, 0, 32),
+            'status' => 'pending',
+            'created_at' => $now,
+        ];
+        if ($supersedesId !== null) {
+            $row['supersedes_id'] = $supersedesId;
+        }
+        $wpdb->insert($claims, $row);
+        return 1;
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     * @param array<string, mixed> $extract
+     * @return array{claims_created:int,claims_unchanged:int}
+     */
+    public static function propose_claims_from_extract(array $entity, array $extract): array
+    {
+        $created = 0;
+        $unchanged = 0;
+        $eid = (string) $entity['id'];
+        $etype = (string) ($entity['entity_type'] ?? 'unknown');
+        $method = substr((string) ($extract['source'] ?? 'scan'), 0, 32);
+        foreach (self::scan_attribute_pairs($extract) as [$attr, $incoming]) {
+            $baseline = null;
+            $approved = self::latest_claim($eid, $attr, 'approved');
+            if ($approved) {
+                $baseline = (string) $approved['value'];
+            } else {
+                foreach (self::entity_attribute_pairs($entity) as [$a, $v]) {
+                    if ($a === $attr) {
+                        $baseline = $v;
+                        break;
+                    }
+                }
+            }
+            if ($baseline !== null && $baseline === $incoming) {
+                $unchanged++;
+                continue;
+            }
+            if ($attr === 'description' && $incoming === '') {
+                $unchanged++;
+                continue;
+            }
+            $created += self::insert_pending_claim($eid, $etype, $attr, $incoming, $method);
+        }
+        return ['claims_created' => $created, 'claims_unchanged' => $unchanged];
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     */
+    public static function seed_pending_claims_for_new_entity(array $entity): int
+    {
+        $n = 0;
+        $eid = (string) $entity['id'];
+        $etype = (string) ($entity['entity_type'] ?? 'unknown');
+        $method = substr((string) ($entity['source'] ?? 'scan'), 0, 32);
+        foreach (self::scan_attribute_pairs($entity) as [$attr, $value]) {
+            $n += self::insert_pending_claim($eid, $etype, $attr, $value, $method);
+        }
+        return $n;
+    }
 }

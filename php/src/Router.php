@@ -217,6 +217,7 @@ match (true) {
     /** @param array<string,mixed> $item */
     private function upsertEntity(string $siteId, array $item): bool
     {
+        // Stage 3: claim-only attribute proposals; freeze entity attrs on rescan.
         $type = (string) ($item['entity_type'] ?? '');
         $name = trim((string) ($item['name'] ?? ''));
         if ($type === '' || $name === '') {
@@ -224,9 +225,9 @@ match (true) {
         }
         $key = external_key($siteId, $type, $name);
         $db = bkbs_db()->pdo();
-        $st = $db->prepare('SELECT id, status FROM entities WHERE site_id = ? AND external_key = ?');
+        $st = $db->prepare('SELECT * FROM entities WHERE site_id = ? AND external_key = ?');
         $st->execute([$siteId, $key]);
-        $existing = $st->fetch();
+        $existing = $st->fetch(\PDO::FETCH_ASSOC);
         $now = gmdate('c');
         $props = json_encode($item['properties'] ?? new \stdClass());
         $rels = json_encode($item['relationships'] ?? []);
@@ -236,17 +237,53 @@ match (true) {
         $trust = (string) ($item['trust_level'] ?? 'medium');
 
         if ($existing) {
-            $db->prepare(
-                'UPDATE entities SET description=COALESCE(?, description), properties=?, relationships=?, evidence=?,
-                 source=?, last_updated=?, version=version+1 WHERE id=?'
-            )->execute([$desc, $props, $rels, $evid, $source, $now, $existing['id']]);
+            $claimStats = Resolver::proposeClaimsFromExtract($db, $existing, $item);
+            $status = (string) ($existing['status'] ?? 'pending');
+            $version = (int) ($existing['version'] ?? 1);
+            $touched = ($claimStats['claims_created'] ?? 0) > 0;
+            if ($status === 'stale') {
+                $status = 'pending';
+                $touched = true;
+            }
+            if (($claimStats['claims_created'] ?? 0) > 0) {
+                if ($status === 'approved') {
+                    $status = 'needs_edit';
+                } elseif ($status === 'rejected') {
+                    $status = 'pending';
+                }
+                $version++;
+                $sourceOut = 'rescan_merge';
+            } else {
+                $sourceOut = (string) ($existing['source'] ?? $source);
+            }
+            if ($touched || ($claimStats['claims_created'] ?? 0) > 0) {
+                $db->prepare(
+                    'UPDATE entities SET status=?, source=?, last_updated=?, version=? WHERE id=?'
+                )->execute([$status, $sourceOut, $now, $version, $existing['id']]);
+            } else {
+                $db->prepare('UPDATE entities SET last_updated=? WHERE id=?')->execute([$now, $existing['id']]);
+            }
         } else {
+            $id = uuid();
             $db->prepare(
                 'INSERT INTO entities(id,site_id,external_key,entity_type,name,description,properties,relationships,evidence,version,trust_level,source,status,last_updated,created_at)
                  VALUES(?,?,?,?,?,?,?,?,?,1,?,?,?,?,?)'
             )->execute([
-                uuid(), $siteId, $key, $type, $name, $desc, $props, $rels, $evid, $trust, $source, 'pending', $now, $now,
+                $id, $siteId, $key, $type, $name, $desc, $props, $rels, $evid, $trust, $source, 'pending', $now, $now,
             ]);
+            $row = [
+                'id' => $id,
+                'entity_type' => $type,
+                'name' => $name,
+                'description' => $desc,
+                'properties' => $item['properties'] ?? [],
+                'relationships' => $item['relationships'] ?? [],
+                'evidence' => $item['evidence'] ?? [],
+                'trust_level' => $trust,
+                'source' => $source,
+                'status' => 'pending',
+            ];
+            Resolver::seedPendingClaimsForNewEntity($db, $row);
         }
         return true;
     }

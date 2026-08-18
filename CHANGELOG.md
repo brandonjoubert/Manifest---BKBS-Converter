@@ -7,11 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Claim Ledger Stage 3** (claim-only scan merge, all three editions)
+  - Python: `claim_writer` + rewritten `apply_extracted` — new entities get pending claims; rescans insert pending claims without overwriting entity attribute columns; approved + pending → `needs_edit`
+  - PHP Host / WordPress: same semantics in `upsertEntity` / `upsert_entity`
+  - Production export still reads entities; Stage 0 goldens unchanged
+  - Tests: `tests/test_merge_stage3.py`
+
 ### Changed
 
 - **Docs for cloners:** README, INSTALL.md/txt, WordPress + PHP installer READMEs, test-fixtures, CONTRIBUTING, and USER_MANUAL now give a clear **pick one product** path, prerequisites, smoke/quality gates (Stage 0/1/2), and common failure fixes so a fresh clone can run any edition without guesswork.
 
-### Added
+### Also added
 
 - **Claim Ledger Stage 2** (backfill + real resolve, all three editions; dual-path only)
   - Python: `claim_codec`, `ResolvedEntity`, real `resolve_entity(db=)`, `scripts/backfill_claims.py`, `scripts/verify_exports_via_resolve.py`

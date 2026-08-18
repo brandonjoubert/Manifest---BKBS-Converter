@@ -241,25 +241,44 @@ def convert_free_text(
             )
         ]
 
-    client, cfg = _get_client(cfg)
-    user = {
-        "site_base_url": base_url or "",
-        "default_entity_type": default_entity_type,
-        "text": text,
-        "instruction": "Convert this free-form business text into one or more BKBS entities.",
-    }
-    resp = client.chat.completions.create(
-        model=cfg.model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
-        ],
-        temperature=0.2,
-    )
-    content = resp.choices[0].message.content or ""
-    data = _parse_json_payload(content)
-    ents = data.get("entities") if isinstance(data, dict) else []
-    normalized = _normalize_entities(ents if isinstance(ents, list) else [], source="manual")
-    for e in normalized:
-        e.source = "manual"
-    return normalized
+    def _fallback() -> list[ExtractedEntity]:
+        etype = default_entity_type if default_entity_type in ENTITY_TYPES else "knowledge_article"
+        name = text.strip().split("\n")[0][:120] or "Manual note"
+        return [
+            ExtractedEntity(
+                entity_type=etype,
+                name=name,
+                description=text.strip()[:4000],
+                properties={},
+                evidence=[{"url": base_url or "", "snippet": name, "kind": "manual"}],
+                trust_level="medium",
+                source="manual",
+            )
+        ]
+
+    try:
+        client, cfg = _get_client(cfg)
+        user = {
+            "site_base_url": base_url or "",
+            "default_entity_type": default_entity_type,
+            "text": text,
+            "instruction": "Convert this free-form business text into one or more BKBS entities.",
+        }
+        resp = client.chat.completions.create(
+            model=cfg.model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
+            ],
+            temperature=0.2,
+        )
+        content = resp.choices[0].message.content or ""
+        data = _parse_json_payload(content)
+        ents = data.get("entities") if isinstance(data, dict) else []
+        normalized = _normalize_entities(ents if isinstance(ents, list) else [], source="manual")
+        for e in normalized:
+            e.source = "manual"
+        return normalized or _fallback()
+    except Exception:
+        logger.exception("Free-text LLM conversion failed; using non-LLM fallback")
+        return _fallback()

@@ -238,6 +238,8 @@ final class MBKBS_Admin
     }
 
     /**
+     * Stage 3: claim-only attribute proposals; freeze entity attrs on rescan.
+     *
      * @param array<string,mixed> $item
      */
     private function upsert_entity(string $site_id, array $item): bool
@@ -251,7 +253,7 @@ final class MBKBS_Admin
         $key = MBKBS_Database::external_key($site_id, $type, $name);
         $table = MBKBS_Database::entities_table();
         $existing = $wpdb->get_row(
-            $wpdb->prepare("SELECT id, status FROM {$table} WHERE site_id = %s AND external_key = %s", $site_id, $key),
+            $wpdb->prepare("SELECT * FROM {$table} WHERE site_id = %s AND external_key = %s", $site_id, $key),
             ARRAY_A
         );
         $now = current_time('mysql', true);
@@ -263,24 +265,38 @@ final class MBKBS_Admin
         $trust = (string) ($item['trust_level'] ?? 'medium');
 
         if ($existing) {
+            $claimStats = MBKBS_Backfill::propose_claims_from_extract($existing, $item);
+            $status = (string) ($existing['status'] ?? 'pending');
+            $version = (int) ($existing['version'] ?? 1);
+            $sourceOut = (string) ($existing['source'] ?? $source);
+            if (($claimStats['claims_created'] ?? 0) > 0) {
+                if ($status === 'approved') {
+                    $status = 'needs_edit';
+                } elseif ($status === 'rejected' || $status === 'stale') {
+                    $status = 'pending';
+                }
+                $version++;
+                $sourceOut = 'rescan_merge';
+            } elseif ($status === 'stale') {
+                $status = 'pending';
+            }
             $wpdb->update(
                 $table,
                 [
-                    'description' => $desc,
-                    'properties' => $props,
-                    'relationships' => $rels,
-                    'evidence' => $evid,
-                    'source' => $source,
+                    'status' => $status,
+                    'source' => $sourceOut,
                     'last_updated' => $now,
-                    'version' => (int) $wpdb->get_var($wpdb->prepare("SELECT version FROM {$table} WHERE id = %s", $existing['id'])) + 1,
+                    'version' => $version,
                 ],
                 ['id' => $existing['id']]
             );
         } else {
-            $wpdb->insert(
+            $id = MBKBS_Database::uuid();
+            $site_id = (string) $site_id;
+            $inserted = $wpdb->insert(
                 $table,
                 [
-                    'id' => MBKBS_Database::uuid(),
+                    'id' => $id,
                     'site_id' => $site_id,
                     'external_key' => $key,
                     'entity_type' => $type,
@@ -295,8 +311,25 @@ final class MBKBS_Admin
                     'status' => 'pending',
                     'last_updated' => $now,
                     'created_at' => $now,
-                ]
+                ],
+                ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s']
             );
+            if ($inserted === false) {
+                return false;
+            }
+            $row = [
+                'id' => $id,
+                'entity_type' => $type,
+                'name' => $name,
+                'description' => $desc,
+                'properties' => $item['properties'] ?? [],
+                'relationships' => $item['relationships'] ?? [],
+                'evidence' => $item['evidence'] ?? [],
+                'trust_level' => $trust,
+                'source' => $source,
+                'status' => 'pending',
+            ];
+            MBKBS_Backfill::seed_pending_claims_for_new_entity($row);
         }
         return true;
     }

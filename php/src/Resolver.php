@@ -204,6 +204,143 @@ final class Resolver
         return $pairs;
     }
 
+    /**
+     * Stage 3: scan attribute pairs (omit status).
+     *
+     * @param array<string, mixed> $entity
+     * @return list<array{0:string,1:string}>
+     */
+    public static function scanAttributePairs(array $entity): array
+    {
+        $out = [];
+        foreach (self::entityAttributePairs($entity) as [$attr, $value]) {
+            if ($attr === 'status') {
+                continue;
+            }
+            $out[] = [$attr, $value];
+        }
+        return $out;
+    }
+
+    public static function latestClaim(\PDO $pdo, string $entityId, string $attribute, string $status): ?array
+    {
+        $st = $pdo->prepare(
+            'SELECT * FROM claims WHERE entity_id = ? AND attribute = ? AND status = ? ORDER BY id DESC LIMIT 1'
+        );
+        $st->execute([$entityId, $attribute, $status]);
+        $row = $st->fetch(\PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    /**
+     * Insert pending claim; supersede prior pending; point supersedes_id at approved if any.
+     *
+     * @return int claims inserted (0 or 1)
+     */
+    public static function insertPendingClaim(
+        \PDO $pdo,
+        string $entityId,
+        string $entityType,
+        string $attribute,
+        string $value,
+        string $extractionMethod = 'scan'
+    ): int {
+        $approved = self::latestClaim($pdo, $entityId, $attribute, 'approved');
+        $pending = self::latestClaim($pdo, $entityId, $attribute, 'pending');
+        $supersedesId = null;
+        if ($approved) {
+            $supersedesId = (int) $approved['id'];
+        }
+        if ($pending) {
+            $pdo->prepare('UPDATE claims SET status = ? WHERE id = ?')->execute(['superseded', (int) $pending['id']]);
+            if ($supersedesId === null) {
+                $supersedesId = (int) $pending['id'];
+            }
+        }
+        $now = gmdate('c');
+        $pdo->prepare(
+            'INSERT INTO claims(entity_id, entity_type, attribute, value, source_url, extraction_method, confidence, status, supersedes_id, created_at, approved_by, approved_at, review_due_at)
+             VALUES(?,?,?,?,NULL,?,NULL,?,?,?,?,NULL,NULL)'
+        )->execute([
+            $entityId,
+            $entityType,
+            $attribute,
+            $value,
+            substr($extractionMethod, 0, 32),
+            'pending',
+            $supersedesId,
+            $now,
+            null,
+        ]);
+        return 1;
+    }
+
+    /**
+     * Baseline encoded value: approved claim else entity pair map.
+     *
+     * @param array<string, mixed> $entity
+     */
+    public static function baselineEncoded(\PDO $pdo, array $entity, string $attribute): ?string
+    {
+        $eid = (string) ($entity['id'] ?? '');
+        if ($eid !== '') {
+            $approved = self::latestClaim($pdo, $eid, $attribute, 'approved');
+            if ($approved) {
+                return (string) $approved['value'];
+            }
+        }
+        foreach (self::entityAttributePairs($entity) as [$attr, $value]) {
+            if ($attr === $attribute) {
+                return $value;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Propose pending claims from extract vs baseline. Does not mutate entity attrs.
+     *
+     * @param array<string, mixed> $entity full entity row
+     * @param array<string, mixed> $extract scan item
+     * @return array{claims_created:int,claims_unchanged:int}
+     */
+    public static function proposeClaimsFromExtract(\PDO $pdo, array $entity, array $extract): array
+    {
+        $created = 0;
+        $unchanged = 0;
+        $eid = (string) $entity['id'];
+        $etype = (string) ($entity['entity_type'] ?? 'unknown');
+        $method = substr((string) ($extract['source'] ?? 'scan'), 0, 32);
+        foreach (self::scanAttributePairs($extract) as [$attr, $incoming]) {
+            $current = self::baselineEncoded($pdo, $entity, $attr);
+            if ($current !== null && $current === $incoming) {
+                $unchanged++;
+                continue;
+            }
+            if ($attr === 'description' && $incoming === '') {
+                $unchanged++;
+                continue;
+            }
+            $created += self::insertPendingClaim($pdo, $eid, $etype, $attr, $incoming, $method);
+        }
+        return ['claims_created' => $created, 'claims_unchanged' => $unchanged];
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     */
+    public static function seedPendingClaimsForNewEntity(\PDO $pdo, array $entity): int
+    {
+        $n = 0;
+        $eid = (string) $entity['id'];
+        $etype = (string) ($entity['entity_type'] ?? 'unknown');
+        $method = substr((string) ($entity['source'] ?? 'scan'), 0, 32);
+        foreach (self::scanAttributePairs($entity) as [$attr, $value]) {
+            $n += self::insertPendingClaim($pdo, $eid, $etype, $attr, $value, $method);
+        }
+        return $n;
+    }
+
     /** @return array<string, mixed> */
     private static function decodeJsonAssoc(mixed $raw): array
     {

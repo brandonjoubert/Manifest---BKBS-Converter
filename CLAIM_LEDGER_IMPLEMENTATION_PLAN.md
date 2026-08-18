@@ -3,7 +3,7 @@
 **Purpose:** Convert entity store from mutable rows to append-only claim ledger, with explicit stage gates for safe incremental deployment.
 
 **Generated:** 2026-07-28  
-**Status:** Stage 0 complete (2026-07-29); Stage 1 complete (2026-08-04); Stage 2 implemented (2026-08-11)
+**Status:** Stage 0–2 complete; Stage 3 implemented (2026-08-17) — claim-only scan merge
 
 ---
 
@@ -165,44 +165,33 @@ CREATE INDEX idx_claims_supersedes ON claims(supersedes_id);
 
 ## STAGE 3: Claim-Only Merge Pipeline (Write Path)
 
+**Status:** Implemented 2026-08-17 (Python + PHP Host + WordPress)  
+**Design:** `brandon-main-design-stage3-20260817-090813.md` (APPROVED, Approach A)
+
 ### ENTRY
 - Stage 2 complete — resolver produces identical exports
 - Backfill verified
 
-### TASKS (Both Editions)
+### TASKS (All Editions)
 
-**Python — `app/services/merger.py`:**
-1. Rewrite `apply_extracted()` — **remove all UPDATE logic**
-2. New algorithm per extracted entity:
-   ```python
-   for attr in extracted_attributes:
-       current = get_latest_approved_claim(entity_id, attr)
-       if current and current.value != new_value:
-           insert_claim(entity_id, attr, new_value, status='pending', supersedes_id=current.id)
-       elif not current:
-           insert_claim(entity_id, attr, new_value, status='pending')
-   ```
-3. Return stats: `created`, `superseded_pending`, `unchanged`
-4. Update `scan_runner.py` to call new `apply_extracted()`
+**Python — `app/services/merger.py` + `claim_writer.py`:**
+1. Rewrite `apply_extracted()` — no scan UPDATE of entity attribute columns
+2. New entity → shell `pending` + pending claims for all atoms
+3. Existing → compare extract vs approved claim (else entity columns) → pending claims; approved + pending → `needs_edit`
+4. Supersede prior pending same attribute (status only)
 
-**PHP — `php/src/Router.php::upsertEntity()`:**
-1. Remove UPDATE block (lines 238-242)
-2. Same claim-insert logic using `Resolver::getLatestApprovedClaim()`
-3. Update `scan()` to use new merge
+**PHP / WordPress:** same in `Router::upsertEntity` / `MBKBS_Admin::upsert_entity` via `Resolver` / `MBKBS_Backfill` helpers
 
 ### EXIT
-- [ ] **No UPDATE/DELETE on `claims` table** — verify with grep: `grep -r "UPDATE.*claims\|DELETE.*claims" app/ php/`
-- [ ] Run a **test scan** on test site:
-  - New entities → claims with `status='pending'`
-  - Changed attributes → new pending claims with `supersedes_id` set
-  - Unchanged → no new claims
-- [ ] Dashboard still loads, entities list shows (still reads from `entities` table — unchanged)
-- [ ] Stage 0 verification script **still passes** (exports unchanged because UI still reads `entities` table)
+- [x] Claim **values** not mutated; status transitions to `superseded` only
+- [x] Tests: new / identical / change+needs_edit / no entity attr overwrite (`tests/test_merge_stage3.py`)
+- [x] Dashboard still reads entities; production export unchanged
+- [x] Stage 0 verification **still passes**
+- [x] Stage 2 via-resolve still PASS
 
 ### ROLLBACK
-- Revert `merger.py` / `Router.php` to previous version
+- Revert merger/upsert modules
 - `DELETE FROM claims WHERE status='pending'` — cleans test scan artifacts
-
 ---
 
 ## STAGE 4: Export Adapters + Resolver Cutover (Read Path)

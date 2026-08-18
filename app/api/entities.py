@@ -178,6 +178,7 @@ def entities_from_text(site_id: str, body: FreeTextConvert, db: Session = Depend
         body.text,
         base_url=site.base_url,
         default_entity_type=body.default_entity_type,
+        db=db,
     )
     if body.approve_immediately:
         # create approved via direct insert after merge as pending then approve

@@ -1,4 +1,4 @@
-"""Entity normalization, dedupe, merge, and rescan semantics."""
+"""Entity normalization, dedupe, merge, and rescan semantics (Stage 3 claim-only scan)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.models import Entity, EntityVersion, utcnow
 from app.schemas import ExtractedEntity
+from app.services.claim_writer import (
+    propose_claims_from_extract,
+    seed_pending_claims_for_new_entity,
+)
 
 
 def normalize_name(name: str) -> str:
@@ -25,6 +29,7 @@ def external_key(site_id: str, entity_type: str, name: str) -> str:
 
 
 def _merge_dicts(a: dict, b: dict) -> dict:
+    """Kept for unit tests / human-path helpers; scan path no longer uses this."""
     out = dict(a or {})
     for k, v in (b or {}).items():
         if v is None or v == "" or v == [] or v == {}:
@@ -33,11 +38,12 @@ def _merge_dicts(a: dict, b: dict) -> dict:
             out[k] = v
         elif isinstance(out[k], dict) and isinstance(v, dict):
             out[k] = _merge_dicts(out[k], v)
-        # else keep existing preferred (approved human edits preserved by not overwriting unless empty)
     return out
 
 
-def _merge_list_of_dicts(a: list, b: list, key_fields: tuple[str, ...] = ("url", "predicate", "target_name")) -> list:
+def _merge_list_of_dicts(
+    a: list, b: list, key_fields: tuple[str, ...] = ("url", "predicate", "target_name")
+) -> list:
     result = list(a or [])
     seen = set()
     for item in result:
@@ -70,21 +76,6 @@ def snapshot_entity(entity: Entity) -> dict[str, Any]:
     }
 
 
-def material_change(old: Entity, new_data: ExtractedEntity) -> bool:
-    if normalize_name(old.name) != normalize_name(new_data.name):
-        return True
-    if (old.description or "").strip() != (new_data.description or "").strip():
-        # Ignore if new is empty
-        if new_data.description:
-            return True
-    # properties keys added
-    old_props = old.properties or {}
-    for k, v in (new_data.properties or {}).items():
-        if v and old_props.get(k) != v:
-            return True
-    return False
-
-
 def apply_extracted(
     db: Session,
     site_id: str,
@@ -93,10 +84,24 @@ def apply_extracted(
     is_rescan: bool = False,
 ) -> dict[str, int]:
     """
-    Merge extracted entities into the site graph.
-    Returns stats: created, updated, unchanged, marked_stale.
+    Stage 3 claim-only scan merge.
+
+    - New entities: INSERT entity shell (pending) + pending claims for all atoms.
+    - Existing: do NOT UPDATE attribute columns from scan; insert pending claims
+      for changed atoms; approved + any new claim → needs_edit.
+    - Rescan: mark unseen non-manual entities stale (status only).
+
+    Returns stats including claims_created / claims_unchanged.
     """
-    stats = {"created": 0, "updated": 0, "unchanged": 0, "marked_stale": 0, "total_in": len(extracted)}
+    stats = {
+        "created": 0,
+        "updated": 0,  # kept for callers; means "touched with claim activity or status"
+        "unchanged": 0,
+        "marked_stale": 0,
+        "claims_created": 0,
+        "claims_unchanged": 0,
+        "total_in": len(extracted),
+    }
     seen_keys: set[str] = set()
 
     for item in extracted:
@@ -127,6 +132,8 @@ def apply_extracted(
             )
             db.add(ent)
             db.flush()
+            n_claims = seed_pending_claims_for_new_entity(db, ent)
+            stats["claims_created"] += n_claims
             db.add(
                 EntityVersion(
                     entity_id=ent.id,
@@ -138,37 +145,24 @@ def apply_extracted(
             stats["created"] += 1
             continue
 
-        # Merge into existing
-        changed = material_change(existing, item)
-        existing.properties = _merge_dicts(existing.properties or {}, item.properties or {})
-        existing.relationships = _merge_list_of_dicts(
-            existing.relationships or [], item.relationships or [], ("predicate", "target_name", "target_entity_id")
-        )
-        existing.evidence = _merge_list_of_dicts(
-            existing.evidence or [], item.evidence or [], ("url", "snippet", "kind")
-        )
-        if item.description and not existing.description:
-            existing.description = item.description
-        elif item.description and existing.status in ("pending", "stale", "needs_edit") and existing.source != "manual":
-            # allow refresh of non-approved auto content
-            if len(item.description) > len(existing.description or ""):
-                existing.description = item.description
-                changed = True
+        # Existing: bookkeeping only on entity; claims for attribute proposals
+        claim_stats = propose_claims_from_extract(db, existing, item)
+        stats["claims_created"] += claim_stats["claims_created"]
+        stats["claims_unchanged"] += claim_stats["claims_unchanged"]
 
         existing.last_scan_job_id = scan_job_id
         existing.last_updated = utcnow()
+
+        touched = claim_stats["claims_created"] > 0
         if existing.status == "stale":
             existing.status = "pending"
-            changed = True
+            touched = True
 
-        if changed:
+        if claim_stats["claims_created"] > 0:
             if existing.status == "approved":
-                # Human-approved: flag for review rather than silently changing meaning
                 existing.status = "needs_edit"
-            elif existing.status == "rejected":
-                # leave rejected unless we want re-open — re-open to pending on rescan change
-                if is_rescan:
-                    existing.status = "pending"
+            elif existing.status == "rejected" and is_rescan:
+                existing.status = "pending"
             existing.version = (existing.version or 1) + 1
             existing.source = "rescan_merge" if is_rescan else (item.source or existing.source)
             db.add(
@@ -180,10 +174,11 @@ def apply_extracted(
                 )
             )
             stats["updated"] += 1
+        elif touched:
+            stats["updated"] += 1
         else:
             stats["unchanged"] += 1
 
-    # Mark stale: scan-sourced entities not seen this scan (not manual-only)
     if is_rescan and seen_keys:
         candidates = (
             db.query(Entity)
