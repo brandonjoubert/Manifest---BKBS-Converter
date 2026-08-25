@@ -91,6 +91,7 @@ def test_entity_attribute_pairs_include_prop_keys():
     assert pairs[prop_attribute("email")] == "x@y.z"
     assert "relationships" in pairs
     assert "evidence" in pairs
+    assert "status" not in pairs
 
 
 def test_backfill_and_resolve_roundtrip(tmp_path):
@@ -98,7 +99,7 @@ def test_backfill_and_resolve_roundtrip(tmp_path):
     ent = _seed(db)
     stats = backfill_entity(db, ent, dry_run=False, update=False)
     db.commit()
-    assert stats["inserted"] >= 5  # name, desc, props, rel, evid, trust/source/status
+    assert stats["inserted"] >= 5  # name, desc, props, rel, evid, trust/source (not status)
     assert stats["skipped"] == 0
 
     # Idempotent second run

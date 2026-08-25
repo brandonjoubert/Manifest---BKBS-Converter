@@ -68,7 +68,11 @@
             <td class="truncate muted">{{ e.description or "—" }}</td>
             <td class="muted">{{ e.source }} · v{{ e.version }}</td>
             <td style="white-space:nowrap">
+              {% if e.status == 'pending' %}
               <a class="btn btn-sm btn-primary" href="/entities/{{ e.id }}">Edit before approve</a>
+              {% else %}
+              <a class="btn btn-sm" href="/entities/{{ e.id }}">Edit</a>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

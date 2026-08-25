@@ -72,75 +72,48 @@ final class Publisher
 
         $approved = array_values(array_filter(
             $entities,
-            static fn($e) => ($e['status'] ?? '') === 'approved'
+            static fn($e) => Resolver::isPublicEnvelope($e['status'] ?? null)
         ));
 
         $files = [];
-        $llms = $this->renderLlms($site, $approved);
-        $this->write($root . '/llms.txt', $llms);
+        $this->write($root . '/llms.txt', Exports\LlmsTxt::render($site, $approved));
         $files[] = 'llms.txt';
 
-        $this->write($root . '/llms-full.txt', $this->renderLlmsFull($site, $approved));
+        $this->write($root . '/llms-full.txt', Exports\LlmsTxt::renderFull($site, $approved));
         $files[] = 'llms-full.txt';
 
-        $graph = [
-            'bkbs_version' => '1.0',
-            'generated_at' => gmdate('c'),
-            'site' => [
-                'id' => $site['id'],
-                'name' => $site['name'],
-                'base_url' => $site['base_url'],
-            ],
-            'entity_count' => count($approved),
-            'entities' => $approved,
-        ];
-        $this->write($root . '/graph.json', json_encode($graph, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n");
+        $this->write(
+            $root . '/graph.json',
+            json_encode(Exports\GraphJson::build($site, $approved), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n"
+        );
         $files[] = 'graph.json';
 
         @mkdir($root . '/schema', 0755, true);
         @mkdir($root . '/.well-known', 0755, true);
         @mkdir($root . '/bkbs', 0755, true);
 
-        $org = [
-            '@context' => 'https://schema.org',
-            '@type' => 'LocalBusiness',
-            'name' => $site['name'],
-            'url' => $site['base_url'],
-            'description' => $this->identityDescription($approved) ?: $site['name'],
-        ];
-        $this->write($root . '/schema/organization.jsonld', json_encode($org, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n");
+        $this->write(
+            $root . '/schema/organization.jsonld',
+            json_encode(Exports\SchemaOrg::organization($site, $approved), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n"
+        );
         $files[] = 'schema/organization.jsonld';
 
-        $services = [];
-        foreach ($approved as $e) {
-            if (in_array($e['entity_type'] ?? '', ['capability', 'product_service'], true)) {
-                $services[] = [
-                    '@context' => 'https://schema.org',
-                    '@type' => 'Service',
-                    'name' => $e['name'],
-                    'description' => $e['description'] ?? $e['name'],
-                ];
-            }
-        }
-        $this->write($root . '/schema/services.jsonld', json_encode($services, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n");
+        $this->write(
+            $root . '/schema/services.jsonld',
+            json_encode(Exports\SchemaOrg::services($site, $approved), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n"
+        );
         $files[] = 'schema/services.jsonld';
 
-        $agent = [
-            'name' => $site['name'],
-            'url' => $site['base_url'],
-            'protocol' => 'agent-web-protocol-stub',
-            'knowledge' => [
-                'llms_txt' => rtrim($site['base_url'], '/') . '/llms.txt',
-                'graph' => rtrim($site['base_url'], '/') . '/graph.json',
-            ],
-        ];
-        $this->write($root . '/.well-known/agent.json', json_encode($agent, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n");
+        $this->write(
+            $root . '/.well-known/agent.json',
+            json_encode(Exports\AgentJson::build($site, $approved), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n"
+        );
         $files[] = '.well-known/agent.json';
 
         $this->write($root . '/bkbs/README.txt', "BKBS PHP edition published for {$site['name']}\n");
         $files[] = 'bkbs/README.txt';
 
-        $this->mergeRobots($root, $site['base_url']);
+        Exports\Robots::merge($root, $site['base_url']);
         $files[] = 'robots.txt';
 
         return [
@@ -195,78 +168,4 @@ final class Publisher
         file_put_contents($path, $content);
     }
 
-    /** @param list<array<string,mixed>> $entities */
-    private function renderLlms(array $site, array $entities): string
-    {
-        $name = $site['name'];
-        $lines = ["# $name", '', "> Business knowledge package for AI agents.", '', '## About', "$name — " . ($site['base_url'] ?? ''), ''];
-        $byType = [];
-        foreach ($entities as $e) {
-            $byType[$e['entity_type'] ?? 'other'][] = $e;
-        }
-        foreach (['capability' => 'Core Capabilities', 'product_service' => 'Products & Services', 'facility_served' => 'Facilities Served', 'policy' => 'Policies'] as $t => $label) {
-            if (empty($byType[$t])) {
-                continue;
-            }
-            $lines[] = '## ' . $label;
-            foreach ($byType[$t] as $e) {
-                $desc = trim((string) ($e['description'] ?? ''));
-                $desc = $desc !== '' ? ': ' . str_replace("\n", ' ', mb_substr($desc, 0, 160)) : '';
-                $lines[] = '- ' . $e['name'] . $desc;
-            }
-            $lines[] = '';
-        }
-        $lines[] = '## Documentation';
-        $lines[] = '- graph.json (full knowledge graph)';
-        $lines[] = '';
-        $lines[] = '<!-- Generated by Manifest BKBS Converter PHP edition -->';
-        return implode("\n", $lines) . "\n";
-    }
-
-    /** @param list<array<string,mixed>> $entities */
-    private function renderLlmsFull(array $site, array $entities): string
-    {
-        $lines = ["# {$site['name']} — BKBS Full Dump", '', 'Entities: ' . count($entities), ''];
-        foreach ($entities as $e) {
-            $lines[] = '## ' . ($e['name'] ?? '');
-            $lines[] = '- type: ' . ($e['entity_type'] ?? '');
-            $lines[] = '- status: ' . ($e['status'] ?? '');
-            if (!empty($e['description'])) {
-                $lines[] = '- description: ' . $e['description'];
-            }
-            $lines[] = '';
-        }
-        return implode("\n", $lines) . "\n";
-    }
-
-    /** @param list<array<string,mixed>> $entities */
-    private function identityDescription(array $entities): string
-    {
-        foreach ($entities as $e) {
-            if (($e['entity_type'] ?? '') === 'business_identity' && !empty($e['description'])) {
-                return (string) $e['description'];
-            }
-        }
-        return '';
-    }
-
-    private function mergeRobots(string $root, string $baseUrl): void
-    {
-        $path = $root . '/robots.txt';
-        $marker = '# BEGIN BKBS';
-        $end = '# END BKBS';
-        $block = "$marker\nUser-agent: *\nAllow: /llms.txt\nAllow: /graph.json\nAllow: /schema/\nAllow: /.well-known/agent.json\nSitemap: " . rtrim($baseUrl, '/') . "/sitemap.xml\n$end\n";
-        $existing = is_file($path) ? (string) file_get_contents($path) : '';
-        if (str_contains($existing, $marker)) {
-            $startPos = strpos($existing, $marker);
-            $endPos = strpos($existing, $end);
-            if ($startPos !== false && $endPos !== false) {
-                $endPos += strlen($end);
-                $existing = rtrim(substr($existing, 0, $startPos)) . "\n\n" . $block . ltrim(substr($existing, $endPos));
-            }
-        } else {
-            $existing = rtrim($existing) . ($existing !== '' ? "\n\n" : '') . $block;
-        }
-        $this->write($path, $existing);
-    }
 }

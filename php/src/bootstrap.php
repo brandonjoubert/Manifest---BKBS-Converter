@@ -22,6 +22,14 @@ spl_autoload_register(function (string $class): void {
     ];
     if (isset($map[$class])) {
         require_once $map[$class];
+        return;
+    }
+    if (str_starts_with($class, 'Bkbs\\Exports\\')) {
+        $name = substr($class, strlen('Bkbs\\Exports\\'));
+        $file = __DIR__ . '/Exports/' . str_replace('\\', '/', $name) . '.php';
+        if (is_file($file)) {
+            require_once $file;
+        }
     }
 });
 

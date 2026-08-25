@@ -395,6 +395,7 @@ match (true) {
             $trustLevel = 'medium';
         }
 
+        $previousStatus = (string) ($entity['status'] ?? 'pending');
         // Handle intent: save_approve / save_reject override status
         if ($intent === 'save_approve') {
             $status = 'approved';
@@ -423,6 +424,13 @@ match (true) {
             $entityId,
         ]);
 
+        $st = $db->prepare('SELECT * FROM entities WHERE id = ?');
+        $st->execute([$entityId]);
+        $updated = $st->fetch(\PDO::FETCH_ASSOC);
+        if ($updated) {
+            Resolver::applySaveClaims($db, $updated, (string) $intent, $previousStatus, 'ui');
+        }
+
         flash_set('ok', 'Entity saved');
         redirect(url('entities/' . $entityId));
     }
@@ -435,15 +443,15 @@ match (true) {
             flash_set('err', 'Bad action');
             redirect(url('home'));
         }
-        $st = bkbs_db()->pdo()->prepare('SELECT site_id FROM entities WHERE id = ?');
+        $pdo = bkbs_db()->pdo();
+        $st = $pdo->prepare('SELECT * FROM entities WHERE id = ?');
         $st->execute([$entityId]);
-        $row = $st->fetch();
+        $row = $st->fetch(\PDO::FETCH_ASSOC);
         if (!$row) {
             flash_set('err', 'Entity not found');
             redirect(url('home'));
         }
-        bkbs_db()->pdo()->prepare('UPDATE entities SET status=?, last_updated=? WHERE id=?')
-            ->execute([$map[$action], gmdate('c'), $entityId]);
+        Resolver::applyHumanDecision($pdo, $row, $action, 'ui');
         flash_set('ok', 'Entity ' . $action . 'd');
         redirect(url('sites/' . $row['site_id'] . '/entities'));
     }
@@ -453,15 +461,22 @@ match (true) {
         $siteId = $_POST['site_id'] ?? '';
         $action = $_POST['action'] ?? 'approve';
         $map = ['approve' => 'approved', 'reject' => 'rejected', 'needs_edit' => 'needs_edit'];
-        $status = $map[$action] ?? 'approved';
+        if (!isset($map[$action])) {
+            $action = 'approve';
+        }
         $ids = $_POST['entity_ids'] ?? [];
         if (!is_array($ids)) {
             $ids = [];
         }
         $pdo = bkbs_db()->pdo();
-        $st = $pdo->prepare('UPDATE entities SET status=?, last_updated=? WHERE id=?');
+        $load = $pdo->prepare('SELECT * FROM entities WHERE id = ?');
         foreach ($ids as $id) {
-            $st->execute([$status, gmdate('c'), (string) $id]);
+            $load->execute([(string) $id]);
+            $ent = $load->fetch(\PDO::FETCH_ASSOC);
+            if (!$ent) {
+                continue;
+            }
+            Resolver::applyHumanDecision($pdo, $ent, $action, 'ui');
         }
         flash_set('ok', 'Updated ' . count($ids) . ' entities');
         redirect(url('sites/' . $siteId . '/entities'));
@@ -479,15 +494,7 @@ match (true) {
             flash_set('err', 'Set web root path (publish root) first');
             redirect(url('sites/' . $id));
         }
-        $st = bkbs_db()->pdo()->prepare('SELECT * FROM entities WHERE site_id = ?');
-        $st->execute([$id]);
-        $entities = [];
-        foreach ($st->fetchAll() as $row) {
-            $row['properties'] = json_decode($row['properties'] ?: '{}', true);
-            $row['relationships'] = json_decode($row['relationships'] ?: '[]', true);
-            $row['evidence'] = json_decode($row['evidence'] ?: '[]', true);
-            $entities[] = $row;
-        }
+        $entities = Resolver::resolveSite(bkbs_db()->pdo(), $id, false);
         $result = (new Publisher())->publish($site, $entities, $root);
         if (!$result['ok']) {
             flash_set('err', $result['error'] ?? 'Publish failed');
@@ -516,8 +523,13 @@ match (true) {
         $this->upsertEntity($siteId, $item);
         if (isset($_POST['approve_immediately'])) {
             $key = external_key($siteId, $item['entity_type'], $item['name']);
-            bkbs_db()->pdo()->prepare('UPDATE entities SET status=? WHERE site_id=? AND external_key=?')
-                ->execute(['approved', $siteId, $key]);
+            $pdo = bkbs_db()->pdo();
+            $st = $pdo->prepare('SELECT * FROM entities WHERE site_id=? AND external_key=?');
+            $st->execute([$siteId, $key]);
+            $ent = $st->fetch(\PDO::FETCH_ASSOC);
+            if ($ent) {
+                Resolver::applyHumanDecision($pdo, $ent, 'approve', 'ui');
+            }
         }
         flash_set('ok', 'Entity created');
         redirect(url('sites/' . $siteId . '/entities'));

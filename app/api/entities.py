@@ -17,6 +17,7 @@ from app.schemas import (
     FreeTextConvert,
     VerifyAction,
 )
+from app.services.claim_writer import apply_human_decision, apply_save_claims, write_surface_claims
 from app.services.extractor_llm import convert_free_text
 from app.services.merger import apply_extracted, external_key, snapshot_entity
 
@@ -58,6 +59,7 @@ def update_entity(entity_id: str, body: EntityUpdate, db: Session = Depends(get_
     ent = db.get(Entity, entity_id)
     if not ent:
         raise HTTPException(404, "Entity not found")
+    previous_status = ent.status
     data = body.model_dump(exclude_unset=True)
     for k, v in data.items():
         setattr(ent, k, v)
@@ -67,6 +69,7 @@ def update_entity(entity_id: str, body: EntityUpdate, db: Session = Depends(get_
     ent.version = (ent.version or 1) + 1
     ent.last_updated = utcnow()
     ent.source = "manual" if ent.source == "manual" else ent.source
+    apply_save_claims(db, ent, intent="save", previous_status=previous_status, approved_by="api")
     db.add(
         EntityVersion(
             entity_id=ent.id,
@@ -85,8 +88,7 @@ def verify_entity(entity_id: str, body: VerifyAction, db: Session = Depends(get_
     ent = db.get(Entity, entity_id)
     if not ent:
         raise HTTPException(404, "Entity not found")
-    status_map = {"approve": "approved", "reject": "rejected", "needs_edit": "needs_edit"}
-    ent.status = status_map[body.action]
+    apply_human_decision(db, ent, body.action, approved_by="api")
     ent.last_updated = utcnow()
     ent.version = (ent.version or 1) + 1
     db.add(
@@ -104,14 +106,12 @@ def verify_entity(entity_id: str, body: VerifyAction, db: Session = Depends(get_
 
 @router.post("/api/entities/bulk-verify")
 def bulk_verify(body: BulkVerify, db: Session = Depends(get_db)):
-    status_map = {"approve": "approved", "reject": "rejected", "needs_edit": "needs_edit"}
-    new_status = status_map[body.action]
     updated = 0
     for eid in body.entity_ids:
         ent = db.get(Entity, eid)
         if not ent:
             continue
-        ent.status = new_status
+        apply_human_decision(db, ent, body.action, approved_by="api")
         ent.last_updated = utcnow()
         ent.version = (ent.version or 1) + 1
         db.add(
@@ -156,6 +156,14 @@ def create_entity(site_id: str, body: EntityCreate, db: Session = Depends(get_db
     )
     db.add(ent)
     db.flush()
+    write_surface_claims(
+        db,
+        ent,
+        claim_status="approved" if status == "approved" else "pending",
+        extraction_method="manual",
+        approved_by="api" if status == "approved" else None,
+        surface=ent,
+    )
     db.add(
         EntityVersion(
             entity_id=ent.id,
@@ -193,8 +201,8 @@ def entities_from_text(site_id: str, body: FreeTextConvert, db: Session = Depend
     )
     if body.approve_immediately:
         for ent in results:
-            ent.status = "approved"
             ent.source = "manual"
+            apply_human_decision(db, ent, "approve", approved_by="api")
         db.commit()
         for ent in results:
             db.refresh(ent)

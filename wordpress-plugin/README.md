@@ -11,7 +11,7 @@ You do **not** need Python or the PHP Host app to run this plugin.
 
 ## Install from this monorepo (recommended)
 
-The repo already ships a ready zip. Use it so Stage 2 files (backfill, resolver, Tools page) are included:
+The repo already ships a ready zip. Use it so Claim Ledger Stage 4a files (writers, `resolve_site`, public-set publish) are included:
 
 ```text
 wordpress-plugin/manifest-bkbs-converter.zip

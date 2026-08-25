@@ -32,6 +32,7 @@ from app.services.llm_settings import (
     save_llm_settings,
     test_llm_connection,
 )
+from app.services.claim_writer import apply_human_decision, apply_save_claims, write_surface_claims
 from app.services.merger import apply_extracted, external_key, snapshot_entity
 from app.services.publish_live import (
     publish_site_live,
@@ -330,13 +331,14 @@ async def ui_bulk_verify(request: Request, db: Session = Depends(get_db)):
     site_id = form.get("site_id")
     action = form.get("action", "approve")
     ids = form.getlist("entity_ids")
-    status_map = {"approve": "approved", "reject": "rejected", "needs_edit": "needs_edit"}
-    new_status = status_map.get(str(action), "approved")
+    action_key = str(action)
+    if action_key not in ("approve", "reject", "needs_edit"):
+        action_key = "approve"
     for eid in ids:
         ent = db.get(Entity, str(eid))
         if not ent:
             continue
-        ent.status = new_status
+        apply_human_decision(db, ent, action_key, approved_by="ui")
         ent.last_updated = utcnow()
         ent.version = (ent.version or 1) + 1
         db.add(
@@ -344,7 +346,7 @@ async def ui_bulk_verify(request: Request, db: Session = Depends(get_db)):
                 entity_id=ent.id,
                 version=ent.version,
                 snapshot_json=snapshot_entity(ent),
-                change_source=f"ui_bulk_{action}",
+                change_source=f"ui_bulk_{action_key}",
             )
         )
     db.commit()
@@ -423,6 +425,7 @@ def ui_entity_save(
         )
 
     # Intent can force approval/rejection after save
+    previous_status = ent.status
     final_status = status
     if intent == "save_approve":
         final_status = "approved"
@@ -441,6 +444,7 @@ def ui_entity_save(
     ent.external_key = external_key(ent.site_id, ent.entity_type, ent.name)
     ent.version = (ent.version or 1) + 1
     ent.last_updated = utcnow()
+    apply_save_claims(db, ent, intent=intent, previous_status=previous_status, approved_by="ui")
     db.add(
         EntityVersion(
             entity_id=ent.id,
@@ -473,7 +477,7 @@ def ui_verify(
     status_map = {"approve": "approved", "reject": "rejected", "needs_edit": "needs_edit"}
     if action not in status_map:
         return RedirectResponse(f"/entities/{entity_id}?err=Bad+action", status_code=303)
-    ent.status = status_map[action]
+    apply_human_decision(db, ent, action, approved_by="ui")
     ent.last_updated = utcnow()
     ent.version = (ent.version or 1) + 1
     db.add(
@@ -551,6 +555,14 @@ def ui_manual_create(
     )
     db.add(ent)
     db.flush()
+    write_surface_claims(
+        db,
+        ent,
+        claim_status="approved" if status == "approved" else "pending",
+        extraction_method="manual",
+        approved_by="ui" if status == "approved" else None,
+        surface=ent,
+    )
     db.add(
         EntityVersion(
             entity_id=ent.id,
@@ -591,8 +603,8 @@ def ui_manual_from_text(
         names = [e.name for e in extracted]
         ents = db.query(Entity).filter(Entity.site_id == site_id, Entity.name.in_(names)).all()
         for ent in ents:
-            ent.status = "approved"
             ent.source = "manual"
+            apply_human_decision(db, ent, "approve", approved_by="ui")
         db.commit()
     return RedirectResponse(
         f"/sites/{site_id}/entities?msg=Converted+{len(extracted)}+entities+from+text",

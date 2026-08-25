@@ -78,7 +78,8 @@ def entity_attribute_pairs(entity: Any) -> list[tuple[str, str]]:
         ev = []
     pairs.append(("evidence", encode_claim_value(ev)))
 
-    for attr in ("trust_level", "source", "status"):
+    # Review state lives on the entity envelope, not as a publishable claim.
+    for attr in ("trust_level", "source"):
         val = getattr(entity, attr, None)
         if val is not None and str(val) != "":
             pairs.append((attr, encode_claim_value(val)))

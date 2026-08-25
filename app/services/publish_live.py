@@ -12,14 +12,17 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import Entity, Site
-from app.services.export_graph import build_graph
-from app.services.export_jsonld import (
+from app.models import Site
+from app.exports import (
     build_agent_json,
+    build_graph,
     build_organization_jsonld,
     build_services_jsonld,
+    merge_robots,
+    render_llms_full,
+    render_llms_txt,
 )
-from app.services.export_llms import render_llms_full, render_llms_txt
+from app.services.resolver import resolve_site
 
 logger = logging.getLogger(__name__)
 
@@ -113,41 +116,7 @@ def _write_json(path: Path, data) -> None:
 
 
 def _merge_robots(root: Path, site: Site) -> str | None:
-    """
-    Append BKBS allow rules to robots.txt if missing.
-    Never deletes existing rules. Returns relative path written or None.
-    """
-    robots = root / "robots.txt"
-    marker = "# BEGIN BKBS"
-    end_marker = "# END BKBS"
-    block = f"""{marker}
-# Machine layers for AI agents (managed by Manifest BKBS Converter)
-User-agent: *
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /graph.json
-Allow: /schema/
-Allow: /.well-known/agent.json
-
-Sitemap: {site.base_url.rstrip('/')}/sitemap.xml
-{end_marker}
-"""
-    existing = robots.read_text(encoding="utf-8") if robots.exists() else ""
-    if marker in existing:
-        # Replace managed block
-        start = existing.find(marker)
-        end = existing.find(end_marker)
-        if end >= 0:
-            end += len(end_marker)
-            new = existing[:start].rstrip() + "\n\n" + block
-            if end < len(existing):
-                new += "\n" + existing[end:].lstrip()
-            _write_text(robots, new.rstrip() + "\n")
-        else:
-            _write_text(robots, existing.rstrip() + "\n\n" + block)
-    else:
-        _write_text(robots, (existing.rstrip() + "\n\n" + block).lstrip() + "\n")
-    return "robots.txt"
+    return merge_robots(root, site)
 
 
 def _ensure_writable(root: Path, raw_input: str = "") -> str | None:
@@ -229,12 +198,9 @@ def publish_site_live(
     if err:
         return PublishResult(ok=False, root=str(root), error=err)
 
-    query = db.query(Entity).filter(Entity.site_id == site.id)
-    if include_pending:
-        query = query.filter(Entity.status.in_(["approved", "pending", "needs_edit"]))
-    else:
-        query = query.filter(Entity.status == "approved")
-    entities = query.order_by(Entity.entity_type, Entity.name).all()
+    # Origin always uses the public set. Draft pending belongs in the ZIP only (T7).
+    _ = include_pending
+    entities = resolve_site(db, site.id, include_pending=False)
 
     written: list[str] = []
     try:

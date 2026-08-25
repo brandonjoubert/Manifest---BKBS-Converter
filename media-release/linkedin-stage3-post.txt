@@ -1,0 +1,65 @@
+Manifest BKBS Converter — LinkedIn media release (Claim Ledger Stage 3)
+=======================================================================
+Use: copy everything below the line into LinkedIn.
+Limit: keep the body ≤ 3000 characters (LinkedIn organic post max).
+Date: 2026-08-18
+Project: https://github.com/brandonjoubert/Manifest---BKBS-Converter
+Commit: b380c70
+
+----------------------------------------------------------------
+
+Most “AI for websites” tools treat your site like a document to scrape once.
+
+That breaks the moment the truth changes.
+
+A phone number updates. A service is retired. A capability is refined after review.
+If the next crawl overwrites what you already approved, you don’t have a knowledge base —
+you have a noisy mirror that undoes editorial judgment every night.
+
+That is why Claim Ledger Stage 3 matters.
+
+We just shipped Stage 3 of Manifest BKBS Converter across all three editions
+(Python Host, PHP shared hosting, and WordPress):
+
+Scan no longer blindly rewrites approved business facts.
+
+What Stage 3 achieves
+• New finds still become reviewable entities + pending claims
+• Identical rescans stay quiet — no false “updates”
+• When truth changes, approved attributes stay frozen
+• The new value arrives as a pending claim; entity → needs_edit
+• Live publish still ships last approved facts — not the unreviewed delta
+
+Machines may propose. Humans still decide. The public agent layer stays trustworthy.
+
+Why this is necessary
+
+Manifest BKBS turns a normal site into a dual-purpose presence: pages for people,
+and structured knowledge for AI agents (llms.txt, graph.json, schema.org, and more).
+
+Agents only help if the facts are correct. Correctness is a loop:
+
+discover → review → approve → publish → rediscover without destroying approval.
+
+Without Stage 3, every rescan risks silently undoing human verification.
+With Stage 3, rescans become a controlled proposal pipeline —
+the difference between “AI scraped my site” and an auditable claim ledger.
+
+How it fits the product
+
+• Stage 0–1 — baselines + claims foundation
+• Stage 2 — backfill + real resolve
+• Stage 3 — claim-only scan merge (this release)
+• Stage 4+ — export cutover + claim diff UI
+
+Same workflow: Add site → Scan → Review → Approve → Publish.
+Same three install paths. What’s new is every scan after the first.
+
+Open source. Apache 2.0. On GitHub main now.
+
+https://github.com/brandonjoubert/Manifest---BKBS-Converter
+
+Pull latest, rescan an approved site, and watch needs_edit appear only when
+truth actually changed — without live files flipping until you say so.
+
+#FutureOfWeb #AIAgents #OpenSource #BKBS #KnowledgeGraph #BuildInPublic

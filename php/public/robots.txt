@@ -1,0 +1,8 @@
+# BEGIN BKBS
+User-agent: *
+Allow: /llms.txt
+Allow: /graph.json
+Allow: /schema/
+Allow: /.well-known/agent.json
+Sitemap: https://example.com/sitemap.xml
+# END BKBS

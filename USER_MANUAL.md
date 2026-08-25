@@ -220,9 +220,9 @@ Each row is one knowledge entry with:
 |--------|---------|--------------------------------|
 | **pending** | Suggested; not yet reviewed | No (unless you export “draft”) |
 | **approved** | You confirmed it is true | **Yes** |
-| **needs_edit** | Changed after approval, or flagged for fix | No |
+| **needs_edit** | Changed after approval, or flagged for fix | **Yes** — last approved snapshot stays live |
 | **rejected** | Wrong / spam / not useful | No |
-| **stale** | Not seen on the latest rescan (may be outdated) | No |
+| **stale** | Not seen on the latest rescan (may be outdated) | **Yes** — last approved until you confirm removal |
 
 #### Quick review actions
 

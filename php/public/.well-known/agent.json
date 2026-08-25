@@ -1,0 +1,9 @@
+{
+    "name": "Example Site",
+    "url": "https:\/\/example.com",
+    "protocol": "agent-web-protocol-stub",
+    "knowledge": {
+        "llms_txt": "https:\/\/example.com\/llms.txt",
+        "graph": "https:\/\/example.com\/graph.json"
+    }
+}

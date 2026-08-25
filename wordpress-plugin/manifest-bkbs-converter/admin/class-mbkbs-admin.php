@@ -355,6 +355,7 @@ final class MBKBS_Admin
         $trust = sanitize_text_field(wp_unslash($_POST['trust_level'] ?? 'medium'));
         $notes = sanitize_textarea_field(wp_unslash($_POST['notes'] ?? ''));
         $intent = sanitize_text_field(wp_unslash($_POST['intent'] ?? 'save'));
+        $previous_status = (string) ($entity['status'] ?? 'pending');
         if ($intent === 'save_approve') {
             $status = 'approved';
         } elseif ($intent === 'save_reject') {
@@ -377,6 +378,13 @@ final class MBKBS_Admin
             ],
             ['id' => $id]
         );
+        $updated = $wpdb->get_row(
+            $wpdb->prepare('SELECT * FROM ' . MBKBS_Database::entities_table() . ' WHERE id = %s', $id),
+            ARRAY_A
+        );
+        if (is_array($updated)) {
+            MBKBS_Backfill::apply_save_claims($updated, $intent, $previous_status, 'ui');
+        }
 
         $msg = 'Saved.';
         if ($intent === 'save_approve') {
@@ -404,11 +412,14 @@ final class MBKBS_Admin
         if (!isset($map[$action])) {
             $this->redirect('mbkbs-entities', 'Bad action.', true);
         }
-        $wpdb->update(
-            MBKBS_Database::entities_table(),
-            ['status' => $map[$action], 'last_updated' => current_time('mysql', true)],
-            ['id' => $id]
+        $ent = $wpdb->get_row(
+            $wpdb->prepare('SELECT * FROM ' . MBKBS_Database::entities_table() . ' WHERE id = %s', $id),
+            ARRAY_A
         );
+        if (!is_array($ent)) {
+            $this->redirect('mbkbs-entities', 'Entity not found.', true);
+        }
+        MBKBS_Backfill::apply_human_decision($ent, $action, 'ui');
         $this->redirect('mbkbs-entities', 'Entity updated.');
     }
 
@@ -419,14 +430,19 @@ final class MBKBS_Admin
         check_admin_referer('mbkbs_bulk_verify');
         $action = sanitize_text_field(wp_unslash($_POST['action_name'] ?? 'approve'));
         $map = ['approve' => 'approved', 'reject' => 'rejected', 'needs_edit' => 'needs_edit'];
-        $status = $map[$action] ?? 'approved';
+        if (!isset($map[$action])) {
+            $action = 'approve';
+        }
         $ids = isset($_POST['entity_ids']) && is_array($_POST['entity_ids']) ? array_map('sanitize_text_field', wp_unslash($_POST['entity_ids'])) : [];
         foreach ($ids as $id) {
-            $wpdb->update(
-                MBKBS_Database::entities_table(),
-                ['status' => $status, 'last_updated' => current_time('mysql', true)],
-                ['id' => $id]
+            $ent = $wpdb->get_row(
+                $wpdb->prepare('SELECT * FROM ' . MBKBS_Database::entities_table() . ' WHERE id = %s', $id),
+                ARRAY_A
             );
+            if (!is_array($ent)) {
+                continue;
+            }
+            MBKBS_Backfill::apply_human_decision($ent, $action, 'ui');
         }
         $this->redirect('mbkbs-entities', sprintf('Updated %d entities.', count($ids)));
     }
@@ -487,11 +503,17 @@ final class MBKBS_Admin
         $this->upsert_entity($site_id, $item);
         if (!empty($_POST['approve_immediately'])) {
             $key = MBKBS_Database::external_key($site_id, $item['entity_type'], $item['name']);
-            $wpdb->update(
-                MBKBS_Database::entities_table(),
-                ['status' => 'approved', 'last_updated' => current_time('mysql', true)],
-                ['site_id' => $site_id, 'external_key' => $key]
+            $ent = $wpdb->get_row(
+                $wpdb->prepare(
+                    'SELECT * FROM ' . MBKBS_Database::entities_table() . ' WHERE site_id = %s AND external_key = %s',
+                    $site_id,
+                    $key
+                ),
+                ARRAY_A
             );
+            if (is_array($ent)) {
+                MBKBS_Backfill::apply_human_decision($ent, 'approve', 'ui');
+            }
         }
         $this->redirect('mbkbs-entities', 'Entity created.');
     }

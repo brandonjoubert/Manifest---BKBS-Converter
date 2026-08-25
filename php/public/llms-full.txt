@@ -1,0 +1,9 @@
+# Example Site — BKBS Full Dump
+
+Entities: 1
+
+## Example Domain
+- type: business_identity
+- status: approved
+- description: Example Domain is for use in illustrative examples in documents.
+

@@ -176,7 +176,7 @@ final class MBKBS_Backfill
         }
         $pairs[] = ['evidence', self::encode_claim_value(array_values($ev))];
 
-        foreach (['trust_level', 'source', 'status'] as $attr) {
+        foreach (['trust_level', 'source'] as $attr) {
             $val = $entity[$attr] ?? null;
             if ($val !== null && (string) $val !== '') {
                 $pairs[] = [$attr, self::encode_claim_value((string) $val)];
@@ -334,5 +334,245 @@ final class MBKBS_Backfill
             $n += self::insert_pending_claim($eid, $etype, $attr, $value, $method);
         }
         return $n;
+    }
+
+    public static function insert_approved_claim(
+        string $entity_id,
+        string $entity_type,
+        string $attribute,
+        string $value,
+        string $extraction_method = 'manual',
+        ?string $approved_by = null
+    ): int {
+        global $wpdb;
+        $claims = MBKBS_Database::claims_table();
+        $approved = self::latest_claim($entity_id, $attribute, 'approved');
+        $pending = self::latest_claim($entity_id, $attribute, 'pending');
+        $supersedes_id = null;
+        if ($approved) {
+            $supersedes_id = (int) $approved['id'];
+            $wpdb->update($claims, ['status' => 'superseded'], ['id' => (int) $approved['id']]);
+        }
+        if ($pending) {
+            $wpdb->update($claims, ['status' => 'superseded'], ['id' => (int) $pending['id']]);
+            if ($supersedes_id === null) {
+                $supersedes_id = (int) $pending['id'];
+            }
+        }
+        $now = current_time('mysql', true);
+        $row = [
+            'entity_id' => $entity_id,
+            'entity_type' => $entity_type,
+            'attribute' => $attribute,
+            'value' => $value,
+            'extraction_method' => substr($extraction_method, 0, 32),
+            'status' => 'approved',
+            'created_at' => $now,
+            'approved_at' => $now,
+        ];
+        if ($approved_by !== null) {
+            $row['approved_by'] = $approved_by;
+        }
+        if ($supersedes_id !== null) {
+            $row['supersedes_id'] = $supersedes_id;
+        }
+        $wpdb->insert($claims, $row);
+        return 1;
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     * @param array<string, mixed>|null $surface
+     */
+    public static function write_surface_claims(
+        array $entity,
+        string $claim_status,
+        string $extraction_method = 'manual',
+        ?string $approved_by = null,
+        ?array $surface = null
+    ): int {
+        $src = $surface ?? $entity;
+        $eid = (string) $entity['id'];
+        $etype = (string) ($entity['entity_type'] ?? 'unknown');
+        $n = 0;
+        foreach (self::scan_attribute_pairs($src) as [$attr, $value]) {
+            if ($claim_status === 'approved') {
+                $existing = self::latest_claim($eid, $attr, 'approved');
+                if ($existing && (string) $existing['value'] === $value) {
+                    $pending = self::latest_claim($eid, $attr, 'pending');
+                    if ($pending) {
+                        global $wpdb;
+                        $wpdb->update(MBKBS_Database::claims_table(), ['status' => 'superseded'], ['id' => (int) $pending['id']]);
+                    }
+                    continue;
+                }
+                $n += self::insert_approved_claim($eid, $etype, $attr, $value, $extraction_method, $approved_by);
+                continue;
+            }
+            if ($claim_status === 'pending') {
+                $pending = self::latest_claim($eid, $attr, 'pending');
+                if ($pending && (string) $pending['value'] === $value) {
+                    continue;
+                }
+                $approved = self::latest_claim($eid, $attr, 'approved');
+                if ($approved && (string) $approved['value'] === $value && !$pending) {
+                    continue;
+                }
+                $n += self::insert_pending_claim($eid, $etype, $attr, $value, $extraction_method);
+            }
+        }
+        return $n;
+    }
+
+    /** @param array<string, mixed> $entity */
+    public static function promote_pending_claims(array $entity, ?string $approved_by = null): int
+    {
+        global $wpdb;
+        $claims = MBKBS_Database::claims_table();
+        $eid = (string) $entity['id'];
+        $rows = $wpdb->get_results(
+            $wpdb->prepare("SELECT * FROM {$claims} WHERE entity_id = %s AND status = %s ORDER BY id ASC", $eid, 'pending'),
+            ARRAY_A
+        ) ?: [];
+        $latest = [];
+        foreach ($rows as $row) {
+            $attr = (string) $row['attribute'];
+            $prev = $latest[$attr] ?? null;
+            if ($prev === null || (int) $row['id'] > (int) $prev['id']) {
+                $latest[$attr] = $row;
+            }
+        }
+        $now = current_time('mysql', true);
+        $n = 0;
+        foreach ($latest as $attr => $pending) {
+            foreach ($rows as $other) {
+                if ((string) $other['attribute'] === $attr && (int) $other['id'] !== (int) $pending['id']) {
+                    $wpdb->update($claims, ['status' => 'superseded'], ['id' => (int) $other['id']]);
+                }
+            }
+            $prior = self::latest_claim($eid, $attr, 'approved');
+            $data = [
+                'status' => 'approved',
+                'approved_at' => $now,
+            ];
+            if ($approved_by !== null) {
+                $data['approved_by'] = $approved_by;
+            }
+            if ($prior && (int) $prior['id'] !== (int) $pending['id']) {
+                $wpdb->update($claims, ['status' => 'superseded'], ['id' => (int) $prior['id']]);
+                if (empty($pending['supersedes_id'])) {
+                    $data['supersedes_id'] = (int) $prior['id'];
+                }
+            }
+            $wpdb->update($claims, $data, ['id' => (int) $pending['id']]);
+            $n++;
+        }
+        return $n;
+    }
+
+    /** @param array<string, mixed> $entity */
+    public static function seed_missing_approved_claims(array $entity, ?string $approved_by = null): int
+    {
+        $eid = (string) $entity['id'];
+        $etype = (string) ($entity['entity_type'] ?? 'unknown');
+        $method = substr((string) ($entity['source'] ?? 'manual'), 0, 32);
+        $n = 0;
+        foreach (self::scan_attribute_pairs($entity) as [$attr, $value]) {
+            if (self::latest_claim($eid, $attr, 'approved')) {
+                continue;
+            }
+            $n += self::insert_approved_claim($eid, $etype, $attr, $value, $method, $approved_by);
+        }
+        return $n;
+    }
+
+    /** @param array<string, mixed> $entity */
+    public static function reject_pending_claims(array $entity): int
+    {
+        global $wpdb;
+        $n = $wpdb->update(
+            MBKBS_Database::claims_table(),
+            ['status' => 'rejected'],
+            ['entity_id' => (string) $entity['id'], 'status' => 'pending']
+        );
+        return is_int($n) ? $n : 0;
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     * @param array<string, mixed>|null $surface
+     * @return array{claims_written:int,claims_promoted:int,claims_rejected:int}
+     */
+    public static function apply_human_decision(
+        array &$entity,
+        string $action,
+        ?string $approved_by = null,
+        ?array $surface = null
+    ): array {
+        global $wpdb;
+        $stats = ['claims_written' => 0, 'claims_promoted' => 0, 'claims_rejected' => 0];
+        $table = MBKBS_Database::entities_table();
+        $eid = (string) $entity['id'];
+        $now = current_time('mysql', true);
+        if ($action === 'approve') {
+            if ($surface !== null) {
+                $stats['claims_written'] = self::write_surface_claims(
+                    $entity,
+                    'approved',
+                    (string) ($surface['source'] ?? 'manual'),
+                    $approved_by,
+                    $surface
+                );
+            } else {
+                $stats['claims_promoted'] = self::promote_pending_claims($entity, $approved_by);
+                $stats['claims_written'] = self::seed_missing_approved_claims($entity, $approved_by);
+            }
+            $entity['status'] = 'approved';
+            $wpdb->update($table, ['status' => 'approved', 'last_updated' => $now], ['id' => $eid]);
+        } elseif ($action === 'reject') {
+            $stats['claims_rejected'] = self::reject_pending_claims($entity);
+            $entity['status'] = 'rejected';
+            $wpdb->update($table, ['status' => 'rejected', 'last_updated' => $now], ['id' => $eid]);
+        } elseif ($action === 'needs_edit') {
+            $entity['status'] = 'needs_edit';
+            $wpdb->update($table, ['status' => 'needs_edit', 'last_updated' => $now], ['id' => $eid]);
+        }
+        return $stats;
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     * @return array{claims_written:int,claims_promoted:int,claims_rejected:int}
+     */
+    public static function apply_save_claims(
+        array &$entity,
+        string $intent,
+        string $previous_status,
+        ?string $approved_by = null
+    ): array {
+        if ($intent === 'save_reject') {
+            return self::apply_human_decision($entity, 'reject', $approved_by);
+        }
+        if ($intent === 'save_approve' || ($entity['status'] ?? '') === 'approved') {
+            return self::apply_human_decision($entity, 'approve', $approved_by, $entity);
+        }
+        $n = self::write_surface_claims(
+            $entity,
+            'pending',
+            (string) ($entity['source'] ?? 'manual'),
+            $approved_by,
+            $entity
+        );
+        $envelope = (string) ($entity['status'] ?? '');
+        if ($n > 0 && $previous_status === 'approved' && !in_array($envelope, ['pending', 'rejected'], true)) {
+            global $wpdb;
+            $entity['status'] = 'needs_edit';
+            $wpdb->update(
+                MBKBS_Database::entities_table(),
+                ['status' => 'needs_edit', 'last_updated' => current_time('mysql', true)],
+                ['id' => (string) $entity['id']]
+            );
+        }
+        return ['claims_written' => $n, 'claims_promoted' => 0, 'claims_rejected' => 0];
     }
 }

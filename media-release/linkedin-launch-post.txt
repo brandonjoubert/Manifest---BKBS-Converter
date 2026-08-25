@@ -1,0 +1,65 @@
+Manifest BKBS Converter — LinkedIn launch / media release post
+================================================================
+Use: copy everything below the line into LinkedIn (or adapt as needed).
+Date: 2026-07-23
+Project: https://github.com/brandonjoubert/Manifest---BKBS-Converter
+Release: https://github.com/brandonjoubert/Manifest---BKBS-Converter/releases/tag/v0.1.0
+
+----------------------------------------------------------------
+
+The web is changing again — and most business websites are not ready.
+
+For 20 years, a “web presence” meant pages for people: marketing copy, menus, contact forms, SEO for Google.
+
+That world is not ending. But it is no longer enough.
+
+A new layer is forming on top of the open web:
+
+- AI assistants answering on behalf of buyers
+- Agents comparing suppliers, shortlisting vendors, and drafting recommendations
+- Systems that don’t “browse like a human” — they look for structured, trustworthy facts
+
+If your business only exists as HTML written for eyes, agents will scrape, guess, and often get you wrong.
+Wrong services. Wrong regions. Wrong capabilities. Lost demand you never see.
+
+This is the new web presence problem:
+not “do we have a website?”
+but “can machines understand us accurately?”
+
+That’s why I built and open-sourced Manifest BKBS Converter.
+
+It helps turn a traditional business website into a dual-purpose presence:
+
+- Humans still get a normal, browsable site
+- AI agents get a living knowledge base — services, capabilities, facilities, policies, evidence — that you can review and approve before it goes live
+
+Output is practical and deployable today:
+llms.txt, graph.json, schema.org JSON-LD, and related machine layers — published to your real domain.
+
+In other words: your business becomes queryable, not just crawlable.
+
+This is not a gimmick file and not “AI SEO magic.”
+It is infrastructure for the agent era of the web — the same way mobile-responsive sites became non-negotiable last decade.
+
+Open source. Apache 2.0. Free to use.
+Works on your PC, Python hosts, and classic PHP shared hosting.
+
+I’d love you to try it.
+Clone the repo, point it at a real website (even your own), run a scan, review the entities, and publish. Tell me what works, what breaks, and what’s missing — early feedback from real businesses and operators matters more than polish right now.
+
+Contributions are very welcome too.
+Whether you’re a developer, designer, technical writer, or someone who simply found a bug on shared hosting: issues, pull requests, docs improvements, and test reports all help. If you’ve ever wanted to contribute to open source in the AI + web space, this is an open door.
+
+GitHub:
+https://github.com/brandonjoubert/Manifest---BKBS-Converter
+
+v0.1.0 release:
+https://github.com/brandonjoubert/Manifest---BKBS-Converter/releases/tag/v0.1.0
+
+Install guide:
+https://github.com/brandonjoubert/Manifest---BKBS-Converter/blob/main/INSTALL.md
+
+If you care about how your company will be found, described, and selected by AI systems — this is the layer to start building now.
+Test it. Break it. Improve it with me.
+
+#FutureOfWeb #AIAgents #OpenSource #DigitalPresence #BKBS #AI #KnowledgeGraph #BusinessStrategy #BuildInPublic

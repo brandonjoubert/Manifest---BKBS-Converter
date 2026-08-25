@@ -41,7 +41,11 @@
           <td><strong><?= h($e['name']) ?></strong></td>
           <td class="muted"><?= h($desc) ?></td>
           <td class="muted" style="white-space:nowrap">
+            <?php if ($e['status'] === 'pending'): ?>
+            <a class="btn btn-sm btn-primary" href="<?= h(url('entities/' . $e['id'])) ?>">Edit before approve</a>
+            <?php else: ?>
             <a class="btn btn-sm" href="<?= h(url('entities/' . $e['id'])) ?>">Edit</a>
+            <?php endif; ?>
           </td>
         </tr>
       <?php endforeach; ?>

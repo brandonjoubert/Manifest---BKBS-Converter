@@ -64,9 +64,15 @@ $err = isset($_GET['mbkbs_err']) ? sanitize_text_field(wp_unslash((string) $_GET
             </td>
             <td class="mbkbs-muted"><?php echo esc_html(wp_html_excerpt((string) $e['description'], 120)); ?></td>
             <td>
+              <?php if ($e['status'] === 'pending') : ?>
               <a class="button button-small button-primary" href="<?php echo esc_url(admin_url('admin.php?page=mbkbs-entity&id=' . rawurlencode($e['id']))); ?>">
                 <?php esc_html_e('Edit before approve', 'manifest-bkbs'); ?>
               </a>
+              <?php else : ?>
+              <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=mbkbs-entity&id=' . rawurlencode($e['id']))); ?>">
+                <?php esc_html_e('Edit', 'manifest-bkbs'); ?>
+              </a>
+              <?php endif; ?>
             </td>
           </tr>
         <?php endforeach; ?>

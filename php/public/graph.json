@@ -1,0 +1,30 @@
+{
+    "bkbs_version": "1.0",
+    "generated_at": "2026-08-25T14:23:36+00:00",
+    "site": {
+        "id": "61b7b794-3ce0-420a-9df0-979e547e068b",
+        "name": "Example Site",
+        "base_url": "https:\/\/example.com"
+    },
+    "entity_count": 1,
+    "entities": [
+        {
+            "id": "c7215781-5b4b-463f-af71-219162d50b4e",
+            "external_key": "09590e7750e58cee54df6aa8ec308dc8",
+            "entity_type": "business_identity",
+            "name": "Example Domain",
+            "description": "Example Domain is for use in illustrative examples in documents.",
+            "properties": [],
+            "relationships": [],
+            "evidence": [],
+            "version": 2,
+            "trust_level": "medium",
+            "source": "heuristic",
+            "status": "approved",
+            "notes": null,
+            "last_updated": "2026-08-25T14:19:37+00:00",
+            "created_at": "2026-08-25T14:17:59+00:00",
+            "site_id": "61b7b794-3ce0-420a-9df0-979e547e068b"
+        }
+    ]
+}

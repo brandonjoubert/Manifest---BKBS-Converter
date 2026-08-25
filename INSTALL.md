@@ -908,7 +908,7 @@ wp-admin → Plugins → Upload → Activate → Manifest BKBS
 7. Open `https://yourdomain.com/llms.txt`  
 
 Claim backfill (optional): [§14](#14-claim-ledger-stage-2--one-time-backfill).  
-After Stage 3, **rescans** write **pending claims** and may set entity status to `needs_edit` without changing published attribute columns until you edit/approve (Stage 5 will apply claim diffs).
+After Stage 3, **rescans** write **pending claims** and may set entity status to `needs_edit` without changing published attribute columns until you edit/approve (Stage 5 will apply claim diffs). Stage 4a: **Approve** writes those claims; live files keep the last approved snapshot while an item is `needs_edit` or `stale`, and never publish never-approved pending or rejected entities.
 
 ---
 

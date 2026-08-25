@@ -33,6 +33,10 @@ require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-resolver.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-crawler.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-extractor.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-llm.php';
+require_once MBKBS_PLUGIN_DIR . 'includes/exports/class-mbkbs-export-llms.php';
+require_once MBKBS_PLUGIN_DIR . 'includes/exports/class-mbkbs-export-schema.php';
+require_once MBKBS_PLUGIN_DIR . 'includes/exports/class-mbkbs-export-graph.php';
+require_once MBKBS_PLUGIN_DIR . 'includes/exports/class-mbkbs-export-agent.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-publisher.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-plugin.php';
 

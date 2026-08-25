@@ -1,4 +1,4 @@
-"""Claim Ledger resolver (Stage 2: real resolve from claims + entity row)."""
+"""Claim Ledger resolver (Stage 2 hybrid + Stage 4a resolve_site public-set)."""
 
 from __future__ import annotations
 
@@ -11,6 +11,11 @@ from sqlalchemy.orm import Session
 from app.models import Claim, Entity
 from app.services.claim_codec import decode_claim_value, is_prop_attribute, prop_key
 from app.services.resolved_entity import ResolvedEntity
+
+# Live / production files. Envelope pending (never approved) and rejected are excluded.
+PUBLIC_ENVELOPE_STATUSES = ("approved", "needs_edit", "stale")
+# Draft ZIP / include_pending. Rejected stays out.
+DRAFT_ENVELOPE_STATUSES = ("approved", "pending", "needs_edit", "stale")
 
 
 def _latest_approved_claims(
@@ -78,6 +83,65 @@ def _apply_claims_to_base(
     return name, description, props, relationships, evidence, trust_level, source, status
 
 
+def _resolved_from_entity(ent: Entity, claims: dict[str, Claim]) -> ResolvedEntity:
+    name, description, properties, relationships, evidence, trust_level, source, status = (
+        _apply_claims_to_base(
+            claims,
+            name=ent.name,
+            description=ent.description,
+            properties=dict(ent.properties or {}),
+            relationships=list(ent.relationships or []),
+            evidence=list(ent.evidence or []),
+            trust_level=ent.trust_level or "medium",
+            source=ent.source or "scan",
+            status=ent.status or "approved",
+        )
+    )
+    return ResolvedEntity(
+        id=ent.id,
+        entity_type=ent.entity_type,
+        name=name,
+        description=description,
+        properties=properties,
+        relationships=relationships,
+        evidence=evidence,
+        version=ent.version or 1,
+        trust_level=trust_level or "medium",
+        source=source or "scan",
+        status=status or "approved",
+        last_updated=ent.last_updated,
+        external_key=ent.external_key or "",
+        notes=ent.notes,
+        site_id=ent.site_id or "",
+    )
+
+
+def _latest_approved_claims_for_ids(
+    db: Session,
+    entity_ids: list[str],
+    as_of: datetime | None = None,
+) -> dict[str, dict[str, Claim]]:
+    """Batch: entity_id -> {attribute: latest approved claim}."""
+    if not entity_ids:
+        return {}
+    q = select(Claim).where(
+        Claim.entity_id.in_(entity_ids),
+        Claim.status == "approved",
+    )
+    if as_of is not None:
+        q = q.where(
+            ((Claim.approved_at != None) & (Claim.approved_at <= as_of))  # noqa: E711
+            | ((Claim.approved_at == None) & (Claim.created_at <= as_of))  # noqa: E711
+        )
+    out: dict[str, dict[str, Claim]] = {}
+    for c in db.scalars(q).all():
+        by_attr = out.setdefault(c.entity_id, {})
+        prev = by_attr.get(c.attribute)
+        if prev is None or (c.id or 0) > (prev.id or 0):
+            by_attr[c.attribute] = c
+    return out
+
+
 def resolve_entity(
     entity_id: str | None = None,
     as_of: datetime | None = None,
@@ -100,35 +164,35 @@ def resolve_entity(
         return None
 
     claims = _latest_approved_claims(db, entity_id, as_of)
+    return _resolved_from_entity(ent, claims)
 
-    name, description, properties, relationships, evidence, trust_level, source, status = (
-        _apply_claims_to_base(
-            claims,
-            name=ent.name,
-            description=ent.description,
-            properties=dict(ent.properties or {}),
-            relationships=list(ent.relationships or []),
-            evidence=list(ent.evidence or []),
-            trust_level=ent.trust_level or "medium",
-            source=ent.source or "scan",
-            status=ent.status or "approved",
-        )
-    )
 
-    return ResolvedEntity(
-        id=ent.id,
-        entity_type=ent.entity_type,
-        name=name,
-        description=description,
-        properties=properties,
-        relationships=relationships,
-        evidence=evidence,
-        version=ent.version or 1,
-        trust_level=trust_level or "medium",
-        source=source or "scan",
-        status=status or "approved",
-        last_updated=ent.last_updated,
-        external_key=ent.external_key or "",
-        notes=ent.notes,
-        site_id=ent.site_id or "",
+def in_public_set(envelope_status: str | None) -> bool:
+    return (envelope_status or "") in PUBLIC_ENVELOPE_STATUSES
+
+
+def resolve_site(
+    db: Session,
+    site_id: str,
+    *,
+    include_pending: bool = False,
+    as_of: datetime | None = None,
+) -> list[ResolvedEntity]:
+    """Resolve a site's publication set (batched approved-claim query).
+
+    Public (include_pending=False):
+      envelope approved / needs_edit / stale → last approved snapshot
+      envelope pending (never approved) and rejected → excluded
+    Draft (include_pending=True): also include pending via column fallback.
+    """
+    statuses = DRAFT_ENVELOPE_STATUSES if include_pending else PUBLIC_ENVELOPE_STATUSES
+    ents = (
+        db.query(Entity)
+        .filter(Entity.site_id == site_id, Entity.status.in_(statuses))
+        .order_by(Entity.entity_type, Entity.name)
+        .all()
     )
+    if not include_pending:
+        ents = [e for e in ents if in_public_set(e.status)]
+    by_id = _latest_approved_claims_for_ids(db, [e.id for e in ents], as_of)
+    return [_resolved_from_entity(e, by_id.get(e.id, {})) for e in ents]

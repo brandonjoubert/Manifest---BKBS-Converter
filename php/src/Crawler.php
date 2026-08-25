@@ -116,7 +116,8 @@ final class Crawler
             $title = trim(html_entity_decode(strip_tags($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         }
 
-        $clean = preg_replace('/<script\b[^>]*>.*?<\/script>/is', ' ', $html) ?? $html;
+        $clean = preg_replace('/<title\b[^>]*>.*?<\/title>/is', ' ', $html) ?? $html;
+        $clean = preg_replace('/<script\b[^>]*>.*?<\/script>/is', ' ', $clean) ?? $clean;
         $clean = preg_replace('/<style\b[^>]*>.*?<\/style>/is', ' ', $clean) ?? $clean;
         $text = html_entity_decode(strip_tags($clean), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = preg_replace("/[ \t]+/", ' ', $text) ?? $text;

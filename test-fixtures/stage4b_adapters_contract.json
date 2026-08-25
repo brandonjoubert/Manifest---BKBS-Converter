@@ -1,0 +1,70 @@
+{
+  "stage": "4b",
+  "description": "Export adapters: one production call path per edition; agent.json bytes unchanged",
+  "input": {
+    "site": ["id", "name", "base_url"],
+    "entities": "list of ResolvedEntity (Python) or assoc arrays (PHP/WP) — public set"
+  },
+  "outputs": [
+    "llms_txt",
+    "llms_full",
+    "graph_json",
+    "organization_jsonld",
+    "services_jsonld",
+    "agent_json"
+  ],
+  "agent_json_must_contain": "agent-web-protocol-stub",
+  "editions": {
+    "python": {
+      "package": "app.exports",
+      "functions": {
+        "llms_txt": "app.exports.llms_txt.render_llms_txt",
+        "llms_full": "app.exports.llms_txt.render_llms_full",
+        "graph_json": "app.exports.graph_json.build_graph",
+        "organization_jsonld": "app.exports.schema_org.build_organization_jsonld",
+        "services_jsonld": "app.exports.schema_org.build_services_jsonld",
+        "agent_json": "app.exports.agent_json.build_agent_json",
+        "robots_suggestion": "app.exports.robots.robots_suggestion",
+        "robots_merge": "app.exports.robots.merge_robots"
+      },
+      "resolved_entity": "app.services.resolved_entity.ResolvedEntity",
+      "production_callers": [
+        "app/services/export_package.py",
+        "app/services/publish_live.py"
+      ]
+    },
+    "php": {
+      "namespace": "Bkbs\\Exports",
+      "classes": {
+        "llms_txt": "Bkbs\\Exports\\LlmsTxt",
+        "graph_json": "Bkbs\\Exports\\GraphJson",
+        "organization_jsonld": "Bkbs\\Exports\\SchemaOrg",
+        "agent_json": "Bkbs\\Exports\\AgentJson",
+        "robots": "Bkbs\\Exports\\Robots"
+      },
+      "source_files": [
+        "php/src/Exports/LlmsTxt.php",
+        "php/src/Exports/SchemaOrg.php",
+        "php/src/Exports/GraphJson.php",
+        "php/src/Exports/AgentJson.php",
+        "php/src/Exports/Robots.php"
+      ],
+      "production_caller": "php/src/Publisher.php"
+    },
+    "wordpress": {
+      "classes": {
+        "llms_txt": "MBKBS_Export_Llms",
+        "graph_json": "MBKBS_Export_Graph",
+        "organization_jsonld": "MBKBS_Export_Schema",
+        "agent_json": "MBKBS_Export_Agent"
+      },
+      "source_files": [
+        "wordpress-plugin/manifest-bkbs-converter/includes/exports/class-mbkbs-export-llms.php",
+        "wordpress-plugin/manifest-bkbs-converter/includes/exports/class-mbkbs-export-schema.php",
+        "wordpress-plugin/manifest-bkbs-converter/includes/exports/class-mbkbs-export-graph.php",
+        "wordpress-plugin/manifest-bkbs-converter/includes/exports/class-mbkbs-export-agent.php"
+      ],
+      "production_caller": "wordpress-plugin/manifest-bkbs-converter/includes/class-mbkbs-publisher.php"
+    }
+  }
+}

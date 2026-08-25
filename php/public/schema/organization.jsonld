@@ -1,0 +1,7 @@
+{
+    "@context": "https:\/\/schema.org",
+    "@type": "LocalBusiness",
+    "name": "Example Site",
+    "url": "https:\/\/example.com",
+    "description": "Example Domain is for use in illustrative examples in documents."
+}

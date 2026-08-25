@@ -11,14 +11,17 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import Entity, Export, Site
-from app.services.export_graph import build_graph
-from app.services.export_jsonld import (
+from app.exports import (
     build_agent_json,
+    build_graph,
     build_organization_jsonld,
     build_services_jsonld,
+    render_llms_full,
+    render_llms_txt,
+    robots_suggestion,
 )
-from app.services.export_llms import render_llms_full, render_llms_txt
+from app.models import Entity, Export, Site  # Entity kept for type hints on helpers
+from app.services.resolver import resolve_site
 
 
 def _write_json(path: Path, data) -> None:
@@ -27,24 +30,7 @@ def _write_json(path: Path, data) -> None:
 
 
 def _robots_suggestion(site: Site) -> str:
-    return f"""# Suggested robots.txt additions for BKBS / AI agents
-# Merge carefully with your existing robots.txt
-
-User-agent: *
-Allow: /
-
-# Explicitly allow common AI crawlers if desired
-User-agent: GPTBot
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: Google-Extended
-Allow: /
-
-Sitemap: {site.base_url}/sitemap.xml
-"""
+    return robots_suggestion(site)
 
 
 def _sitemap_suggestion(site: Site, entities: list[Entity]) -> str:
@@ -105,12 +91,7 @@ def create_export_package(
     site: Site,
     include_pending: bool = False,
 ) -> Export:
-    query = db.query(Entity).filter(Entity.site_id == site.id)
-    if include_pending:
-        query = query.filter(Entity.status.in_(["approved", "pending", "needs_edit"]))
-    else:
-        query = query.filter(Entity.status == "approved")
-    entities = query.order_by(Entity.entity_type, Entity.name).all()
+    entities = resolve_site(db, site.id, include_pending=include_pending)
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out_dir = settings.exports_dir / site.id / stamp

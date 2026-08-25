@@ -37,7 +37,98 @@ final class MBKBS_Resolver
         }
 
         $claims = self::latest_approved_claims($entity_id, $as_of);
+        return self::build_resolved($ent, $claims);
+    }
 
+    public static function is_public_envelope(?string $status): bool
+    {
+        return in_array((string) $status, ['approved', 'needs_edit', 'stale'], true);
+    }
+
+    /**
+     * Stage 4a: batch-resolve the WordPress site's public (or draft) set.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function resolve_site(?string $site_id = null, bool $include_pending = false): array
+    {
+        global $wpdb;
+        $table = MBKBS_Database::entities_table();
+        if ($include_pending) {
+            $status_sql = "status IN ('approved','pending','needs_edit','stale')";
+        } else {
+            $status_sql = "status IN ('approved','needs_edit','stale')";
+        }
+        if ($site_id) {
+            $ents = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT * FROM {$table} WHERE site_id = %s AND {$status_sql} ORDER BY entity_type, name",
+                    $site_id
+                ),
+                ARRAY_A
+            ) ?: [];
+        } else {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $ents = $wpdb->get_results(
+                "SELECT * FROM {$table} WHERE {$status_sql} ORDER BY entity_type, name",
+                ARRAY_A
+            ) ?: [];
+        }
+        if (!$include_pending) {
+            $ents = array_values(array_filter(
+                $ents,
+                static fn($e) => self::is_public_envelope($e['status'] ?? null)
+            ));
+        }
+        $ids = array_map(static fn($e) => (string) $e['id'], $ents);
+        $by_id = self::latest_approved_claims_for_ids($ids);
+        $out = [];
+        foreach ($ents as $ent) {
+            $out[] = self::build_resolved($ent, $by_id[(string) $ent['id']] ?? []);
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<string> $entity_ids
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    private static function latest_approved_claims_for_ids(array $entity_ids): array
+    {
+        global $wpdb;
+        if ($entity_ids === []) {
+            return [];
+        }
+        $claims = MBKBS_Database::claims_table();
+        $placeholders = implode(',', array_fill(0, count($entity_ids), '%s'));
+        $params = array_merge($entity_ids, ['approved']);
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$claims} WHERE entity_id IN ($placeholders) AND status = %s",
+                ...$params
+            ),
+            ARRAY_A
+        ) ?: [];
+        $out = [];
+        foreach ($rows as $row) {
+            $eid = (string) $row['entity_id'];
+            $attr = (string) $row['attribute'];
+            $prev = $out[$eid][$attr] ?? null;
+            if ($prev === null || (int) $row['id'] > (int) $prev['id']) {
+                $out[$eid][$attr] = $row;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $ent
+     * @param array<string, array<string, mixed>> $claims
+     * @return array<string, mixed>
+     */
+    private static function build_resolved(array $ent, array $claims): array
+    {
         $properties = self::decode_json_assoc($ent['properties'] ?? '{}');
         $relationships = self::decode_json_list($ent['relationships'] ?? '[]');
         $evidence = self::decode_json_list($ent['evidence'] ?? '[]');

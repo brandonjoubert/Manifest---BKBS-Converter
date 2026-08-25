@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claim Ledger Stage 4b** (export adapters, golden-stable, all three editions)
+  - Python: `app/exports/` (`llms_txt`, `schema_org`, `graph_json`, `agent_json`, `robots`); production export/publish import adapters; old `export_*.py` modules are shims
+  - PHP Host: `php/src/Exports/*`; `Publisher` writes via adapters
+  - WordPress: `includes/exports/class-mbkbs-export-*.php`; publisher `build_payload` uses adapters
+  - One `ResolvedEntity` type (`app/services/resolved_entity.py`, re-exported from `app.exports.base`)
+  - `agent.json` stub bytes unchanged (`protocol: agent-web-protocol-stub`)
+  - Contract: `test-fixtures/stage4b_adapters_contract.json`, `scripts/stage4b_contract_check.py`
+- **Claim Ledger Stage 4a** (claim writers + `resolve_site` public-set, all three editions)
+  - Approve / reject / Save & approve write claims (promote pending or insert manual approved). Envelope `status` still exists; `attribute=status` is no longer backfilled as a fact.
+  - `resolve_site` / `resolveSite` / `MBKBS_Resolver::resolve_site` batch-loads approved claims. Public set: last approved snapshot while envelope is `approved`, `needs_edit`, or `stale`. Never-approved `pending` and `rejected` stay out of live files.
+  - Python export/publish, PHP `Publisher`, and WordPress rewrite/static files use that public set. Draft `include_pending` ZIP does not write the origin (T7).
+  - Tests: `tests/test_export_stage4.py` (T1–T4, T7) and `php/scripts/verify_stage4a.php`
 - **Claim Ledger Stage 3** (claim-only scan merge, all three editions)
   - Python: `claim_writer` + rewritten `apply_extracted` — new entities get pending claims; rescans insert pending claims without overwriting entity attribute columns; approved + pending → `needs_edit`
   - PHP Host / WordPress: same semantics in `upsertEntity` / `upsert_entity`

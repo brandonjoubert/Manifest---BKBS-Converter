@@ -38,7 +38,105 @@ final class Resolver
         }
 
         $claims = self::latestApprovedClaims($pdo, $entityId, $asOf);
+        return self::buildResolved($ent, $claims);
+    }
 
+    public static function isPublicEnvelope(?string $status): bool
+    {
+        return in_array((string) $status, ['approved', 'needs_edit', 'stale'], true);
+    }
+
+    /**
+     * Stage 4a: batch-resolve a site's publication set.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function resolveSite(\PDO $pdo, string $siteId, bool $includePending = false): array
+    {
+        if ($includePending) {
+            $sql = "SELECT * FROM entities WHERE site_id = ? AND status IN ('approved','pending','needs_edit','stale') ORDER BY entity_type, name";
+        } else {
+            $sql = "SELECT * FROM entities WHERE site_id = ? AND status IN ('approved','needs_edit','stale') ORDER BY entity_type, name";
+        }
+        $st = $pdo->prepare($sql);
+        $st->execute([$siteId]);
+        $ents = $st->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        if (!$includePending) {
+            $ents = array_values(array_filter(
+                $ents,
+                static fn($e) => self::isPublicEnvelope($e['status'] ?? null)
+            ));
+        }
+        $ids = array_map(static fn($e) => (string) $e['id'], $ents);
+        $byId = self::latestApprovedClaimsForIds($pdo, $ids);
+        $out = [];
+        foreach ($ents as $ent) {
+            $eid = (string) $ent['id'];
+            $out[] = self::buildResolved($ent, $byId[$eid] ?? []);
+        }
+        return $out;
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private static function latestApprovedClaims(PDO $pdo, string $entityId, ?string $asOf): array
+    {
+        if ($asOf !== null && $asOf !== '') {
+            $sql = 'SELECT * FROM claims WHERE entity_id = ? AND status = ? AND (
+                (approved_at IS NOT NULL AND approved_at <= ?)
+                OR (approved_at IS NULL AND created_at <= ?)
+            )';
+            $st = $pdo->prepare($sql);
+            $st->execute([$entityId, 'approved', $asOf, $asOf]);
+        } else {
+            $st = $pdo->prepare(
+                'SELECT * FROM claims WHERE entity_id = ? AND status = ?'
+            );
+            $st->execute([$entityId, 'approved']);
+        }
+        $byAttr = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $attr = (string) $row['attribute'];
+            $prev = $byAttr[$attr] ?? null;
+            if ($prev === null || (int) $row['id'] > (int) $prev['id']) {
+                $byAttr[$attr] = $row;
+            }
+        }
+        return $byAttr;
+    }
+
+    /**
+     * @param list<string> $entityIds
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    private static function latestApprovedClaimsForIds(\PDO $pdo, array $entityIds): array
+    {
+        if ($entityIds === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($entityIds), '?'));
+        $st = $pdo->prepare("SELECT * FROM claims WHERE entity_id IN ($placeholders) AND status = ?");
+        $st->execute([...$entityIds, 'approved']);
+        $out = [];
+        while ($row = $st->fetch(\PDO::FETCH_ASSOC)) {
+            $eid = (string) $row['entity_id'];
+            $attr = (string) $row['attribute'];
+            $prev = $out[$eid][$attr] ?? null;
+            if ($prev === null || (int) $row['id'] > (int) $prev['id']) {
+                $out[$eid][$attr] = $row;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $ent
+     * @param array<string, array<string, mixed>> $claims
+     * @return array<string, mixed>
+     */
+    private static function buildResolved(array $ent, array $claims): array
+    {
         $properties = self::decodeJsonAssoc($ent['properties'] ?? '{}');
         $relationships = self::decodeJsonList($ent['relationships'] ?? '[]');
         $evidence = self::decodeJsonList($ent['evidence'] ?? '[]');
@@ -75,8 +173,6 @@ final class Resolver
             }
         }
 
-        // Shape matches fixture/entity rows used by Publisher (graph dumps full arrays).
-        // Hybrid identity fields from entity row; claim-backed attrs overlaid above.
         return [
             'id' => (string) $ent['id'],
             'external_key' => (string) ($ent['external_key'] ?? ''),
@@ -91,40 +187,10 @@ final class Resolver
             'source' => $source !== '' ? $source : 'scan',
             'status' => $status !== '' ? $status : 'approved',
             'notes' => $ent['notes'] ?? null,
-            // last_updated retained for Stage 4/hybrid consumers; Stage 0 normalizer strips it
             'last_updated' => $ent['last_updated'] ?? null,
-            // site_id available for callers that need it without polluting graph dump
+            'created_at' => $ent['created_at'] ?? null,
             'site_id' => (string) ($ent['site_id'] ?? ''),
         ];
-    }
-
-    /**
-     * @return array<string, array<string, mixed>>
-     */
-    private static function latestApprovedClaims(PDO $pdo, string $entityId, ?string $asOf): array
-    {
-        if ($asOf !== null && $asOf !== '') {
-            $sql = 'SELECT * FROM claims WHERE entity_id = ? AND status = ? AND (
-                (approved_at IS NOT NULL AND approved_at <= ?)
-                OR (approved_at IS NULL AND created_at <= ?)
-            )';
-            $st = $pdo->prepare($sql);
-            $st->execute([$entityId, 'approved', $asOf, $asOf]);
-        } else {
-            $st = $pdo->prepare(
-                'SELECT * FROM claims WHERE entity_id = ? AND status = ?'
-            );
-            $st->execute([$entityId, 'approved']);
-        }
-        $byAttr = [];
-        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-            $attr = (string) $row['attribute'];
-            $prev = $byAttr[$attr] ?? null;
-            if ($prev === null || (int) $row['id'] > (int) $prev['id']) {
-                $byAttr[$attr] = $row;
-            }
-        }
-        return $byAttr;
     }
 
     public static function encodeClaimValue(mixed $value): string
@@ -194,7 +260,7 @@ final class Resolver
         }
         $pairs[] = ['evidence', self::encodeClaimValue(array_values($ev))];
 
-        foreach (['trust_level', 'source', 'status'] as $attr) {
+        foreach (['trust_level', 'source'] as $attr) {
             $val = $entity[$attr] ?? null;
             if ($val !== null && (string) $val !== '') {
                 $pairs[] = [$attr, self::encodeClaimValue((string) $val)];
@@ -339,6 +405,234 @@ final class Resolver
             $n += self::insertPendingClaim($pdo, $eid, $etype, $attr, $value, $method);
         }
         return $n;
+    }
+
+    public static function insertApprovedClaim(
+        \PDO $pdo,
+        string $entityId,
+        string $entityType,
+        string $attribute,
+        string $value,
+        string $extractionMethod = 'manual',
+        ?string $approvedBy = null
+    ): int {
+        $approved = self::latestClaim($pdo, $entityId, $attribute, 'approved');
+        $pending = self::latestClaim($pdo, $entityId, $attribute, 'pending');
+        $supersedesId = null;
+        if ($approved) {
+            $supersedesId = (int) $approved['id'];
+            $pdo->prepare('UPDATE claims SET status = ? WHERE id = ?')->execute(['superseded', (int) $approved['id']]);
+        }
+        if ($pending) {
+            $pdo->prepare('UPDATE claims SET status = ? WHERE id = ?')->execute(['superseded', (int) $pending['id']]);
+            if ($supersedesId === null) {
+                $supersedesId = (int) $pending['id'];
+            }
+        }
+        $now = gmdate('c');
+        $pdo->prepare(
+            'INSERT INTO claims(entity_id, entity_type, attribute, value, source_url, extraction_method, confidence, status, supersedes_id, created_at, approved_by, approved_at, review_due_at)
+             VALUES(?,?,?,?,NULL,?,NULL,?,?,?,?,?,NULL)'
+        )->execute([
+            $entityId,
+            $entityType,
+            $attribute,
+            $value,
+            substr($extractionMethod, 0, 32),
+            'approved',
+            $supersedesId,
+            $now,
+            $approvedBy,
+            $now,
+        ]);
+        return 1;
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     * @param array<string, mixed>|null $surface
+     */
+    public static function writeSurfaceClaims(
+        \PDO $pdo,
+        array $entity,
+        string $claimStatus,
+        string $extractionMethod = 'manual',
+        ?string $approvedBy = null,
+        ?array $surface = null
+    ): int {
+        $src = $surface ?? $entity;
+        $eid = (string) $entity['id'];
+        $etype = (string) ($entity['entity_type'] ?? 'unknown');
+        $method = substr($extractionMethod, 0, 32);
+        $n = 0;
+        foreach (self::scanAttributePairs($src) as [$attr, $value]) {
+            if ($claimStatus === 'approved') {
+                $existing = self::latestClaim($pdo, $eid, $attr, 'approved');
+                if ($existing && (string) $existing['value'] === $value) {
+                    $pending = self::latestClaim($pdo, $eid, $attr, 'pending');
+                    if ($pending) {
+                        $pdo->prepare('UPDATE claims SET status = ? WHERE id = ?')->execute(['superseded', (int) $pending['id']]);
+                    }
+                    continue;
+                }
+                $n += self::insertApprovedClaim($pdo, $eid, $etype, $attr, $value, $method, $approvedBy);
+                continue;
+            }
+            if ($claimStatus === 'pending') {
+                $pending = self::latestClaim($pdo, $eid, $attr, 'pending');
+                if ($pending && (string) $pending['value'] === $value) {
+                    continue;
+                }
+                $approved = self::latestClaim($pdo, $eid, $attr, 'approved');
+                if ($approved && (string) $approved['value'] === $value && !$pending) {
+                    continue;
+                }
+                $n += self::insertPendingClaim($pdo, $eid, $etype, $attr, $value, $method);
+            }
+        }
+        return $n;
+    }
+
+    /** @param array<string, mixed> $entity */
+    public static function promotePendingClaims(\PDO $pdo, array $entity, ?string $approvedBy = null): int
+    {
+        $eid = (string) $entity['id'];
+        $st = $pdo->prepare('SELECT * FROM claims WHERE entity_id = ? AND status = ? ORDER BY id ASC');
+        $st->execute([$eid, 'pending']);
+        $rows = $st->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        $latest = [];
+        foreach ($rows as $row) {
+            $attr = (string) $row['attribute'];
+            $prev = $latest[$attr] ?? null;
+            if ($prev === null || (int) $row['id'] > (int) $prev['id']) {
+                $latest[$attr] = $row;
+            }
+        }
+        $now = gmdate('c');
+        $n = 0;
+        $upd = $pdo->prepare(
+            'UPDATE claims SET status = ?, approved_at = ?, approved_by = ?, supersedes_id = COALESCE(supersedes_id, ?) WHERE id = ?'
+        );
+        foreach ($latest as $attr => $pending) {
+            foreach ($rows as $other) {
+                if ((string) $other['attribute'] === $attr && (int) $other['id'] !== (int) $pending['id']) {
+                    $pdo->prepare('UPDATE claims SET status = ? WHERE id = ?')->execute(['superseded', (int) $other['id']]);
+                }
+            }
+            $prior = self::latestClaim($pdo, $eid, $attr, 'approved');
+            $supersedes = $pending['supersedes_id'] ?? null;
+            if ($prior && (int) $prior['id'] !== (int) $pending['id']) {
+                $pdo->prepare('UPDATE claims SET status = ? WHERE id = ?')->execute(['superseded', (int) $prior['id']]);
+                if ($supersedes === null) {
+                    $supersedes = (int) $prior['id'];
+                }
+            }
+            $upd->execute(['approved', $now, $approvedBy, $supersedes, (int) $pending['id']]);
+            $n++;
+        }
+        return $n;
+    }
+
+    /** @param array<string, mixed> $entity */
+    public static function seedMissingApprovedClaims(\PDO $pdo, array $entity, ?string $approvedBy = null): int
+    {
+        $eid = (string) $entity['id'];
+        $etype = (string) ($entity['entity_type'] ?? 'unknown');
+        $method = substr((string) ($entity['source'] ?? 'manual'), 0, 32);
+        $n = 0;
+        foreach (self::scanAttributePairs($entity) as [$attr, $value]) {
+            if (self::latestClaim($pdo, $eid, $attr, 'approved')) {
+                continue;
+            }
+            $n += self::insertApprovedClaim($pdo, $eid, $etype, $attr, $value, $method, $approvedBy);
+        }
+        return $n;
+    }
+
+    /** @param array<string, mixed> $entity */
+    public static function rejectPendingClaims(\PDO $pdo, array $entity): int
+    {
+        $st = $pdo->prepare('UPDATE claims SET status = ? WHERE entity_id = ? AND status = ?');
+        $st->execute(['rejected', (string) $entity['id'], 'pending']);
+        return $st->rowCount();
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     * @param array<string, mixed>|null $surface
+     * @return array{claims_written:int,claims_promoted:int,claims_rejected:int}
+     */
+    public static function applyHumanDecision(
+        \PDO $pdo,
+        array &$entity,
+        string $action,
+        ?string $approvedBy = null,
+        ?array $surface = null
+    ): array {
+        $stats = ['claims_written' => 0, 'claims_promoted' => 0, 'claims_rejected' => 0];
+        $eid = (string) $entity['id'];
+        if ($action === 'approve') {
+            if ($surface !== null) {
+                $stats['claims_written'] = self::writeSurfaceClaims(
+                    $pdo,
+                    $entity,
+                    'approved',
+                    (string) ($surface['source'] ?? 'manual'),
+                    $approvedBy,
+                    $surface
+                );
+            } else {
+                $stats['claims_promoted'] = self::promotePendingClaims($pdo, $entity, $approvedBy);
+                $stats['claims_written'] = self::seedMissingApprovedClaims($pdo, $entity, $approvedBy);
+            }
+            $entity['status'] = 'approved';
+            $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
+                ->execute(['approved', gmdate('c'), $eid]);
+        } elseif ($action === 'reject') {
+            $stats['claims_rejected'] = self::rejectPendingClaims($pdo, $entity);
+            $entity['status'] = 'rejected';
+            $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
+                ->execute(['rejected', gmdate('c'), $eid]);
+        } elseif ($action === 'needs_edit') {
+            $entity['status'] = 'needs_edit';
+            $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
+                ->execute(['needs_edit', gmdate('c'), $eid]);
+        }
+        return $stats;
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     * @return array{claims_written:int,claims_promoted:int,claims_rejected:int}
+     */
+    public static function applySaveClaims(
+        \PDO $pdo,
+        array &$entity,
+        string $intent,
+        string $previousStatus,
+        ?string $approvedBy = null
+    ): array {
+        if ($intent === 'save_reject') {
+            return self::applyHumanDecision($pdo, $entity, 'reject', $approvedBy);
+        }
+        if ($intent === 'save_approve' || ($entity['status'] ?? '') === 'approved') {
+            return self::applyHumanDecision($pdo, $entity, 'approve', $approvedBy, $entity);
+        }
+        $n = self::writeSurfaceClaims(
+            $pdo,
+            $entity,
+            'pending',
+            (string) ($entity['source'] ?? 'manual'),
+            $approvedBy,
+            $entity
+        );
+        $envelope = (string) ($entity['status'] ?? '');
+        if ($n > 0 && $previousStatus === 'approved' && !in_array($envelope, ['pending', 'rejected'], true)) {
+            $entity['status'] = 'needs_edit';
+            $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
+                ->execute(['needs_edit', gmdate('c'), (string) $entity['id']]);
+        }
+        return ['claims_written' => $n, 'claims_promoted' => 0, 'claims_rejected' => 0];
     }
 
     /** @return array<string, mixed> */
