@@ -1,0 +1,46 @@
+Manifest BKBS Converter — LinkedIn media release (Claim Ledger Stage 4a + 4b)
+===============================================================================
+Use: copy everything below the line into LinkedIn.
+Limit: keep the body ≤ 3000 characters (LinkedIn organic post max).
+Date: 2026-08-25
+Project: https://github.com/brandonjoubert/Manifest---BKBS-Converter
+Commit: 952e9c9
+
+----------------------------------------------------------------
+
+Stage 4a and 4b are live across all three editions — Python, PHP, and WordPress. The Claim Ledger now has a complete write and read path.
+
+What Stage 4a achieves (claim writers + publication rules)
+
+Before 4a, approving an entity only flipped a status column. Now approve writes actual claims — promoting pending claims to approved, inserting manual claims, superseding outdated values. Reject and needs_edit do the same. Only entities approved at least once make it into live exports. Pending-only and rejected entities are excluded.
+
+Why this is essential
+
+Without claim writers, the ledger was a read-side curiosity. Stage 4a makes the claim lifecycle complete. Every approve/reject decision produces auditable claim records instead of silent column overwrites. The diff between what a scan proposed and what is live becomes queryable.
+
+What Stage 4b achieves (export adapters)
+
+Every export format — llms.txt, graph.json, schema.org, agent.json, robots.txt — now reads from ResolvedEntity objects, not raw database rows. The adapters are identical across Python, PHP, and WordPress. The publish pipeline resolves latest approved claims, then passes results to format-specific adapters. Output is byte-compatible across all editions.
+
+Why this matters for production
+
+Exported files are always derived from the latest approved claims. A rescan proposing a new description will not change your live llms.txt until you approve that claim. Adding new export formats becomes implementing one function against a stable interface.
+
+Bug fixes from full E2E testing
+
+We ran end-to-end across all three editions. This surfaced real issues:
+
+- "Edit before approve" showed for all statuses, not just pending. Fixed in all three editions.
+- PHP crawler leaked <title> text into body descriptions. Fixed by stripping <title> before extraction.
+- WordPress scan buttons were unlabeled with multiple sites. Now shows site name.
+- PHP entities page was missing manual entry link. Added.
+
+All verified: pytest 46/46, Stage 0–2 pass, Stage 4a tests 8/8, Stage 4b contract check pass.
+
+Open source. Apache 2.0. On GitHub main now.
+
+https://github.com/brandonjoubert/Manifest---BKBS-Converter
+
+Pull latest. Rescan an approved site. Watch the claim ledger resolve correctly — approved claims in, verified files out.
+
+#FutureOfWeb #AIAgents #OpenSource #BKBS #KnowledgeGraph #BuildInPublic
