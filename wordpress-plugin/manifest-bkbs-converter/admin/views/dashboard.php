@@ -43,7 +43,7 @@ $err = isset($_GET['mbkbs_err']) ? sanitize_text_field(wp_unslash((string) $_GET
                   <?php wp_nonce_field('mbkbs_scan'); ?>
                   <input type="hidden" name="action" value="mbkbs_scan" />
                   <input type="hidden" name="site_id" value="<?php echo esc_attr($s['id']); ?>" />
-                  <button class="button button-primary" type="submit"><?php esc_html_e('Scan', 'manifest-bkbs'); ?></button>
+                  <button class="button button-primary" type="submit"><?php esc_html_e('Scan', 'manifest-bkbs'); ?> — <?php echo esc_html($s['name']); ?></button>
                 </form>
               </td>
             </tr>

@@ -12,6 +12,7 @@
     </select>
   </div>
   <button class="btn" type="submit">Filter</button>
+  <a class="btn" href="<?= h(url('sites/' . $site['id'])) ?>#manual">+ Manual</a>
 </form>
 
 <?php if (empty($entities)): ?>

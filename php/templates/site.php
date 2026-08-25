@@ -60,7 +60,7 @@
   </form>
 </div>
 
-<div class="card">
+<div class="card" id="manual">
   <h2>Manual entity</h2>
   <form method="post" action="<?= h(url('manual')) ?>">
     <input type="hidden" name="site_id" value="<?= h($site['id']) ?>" />
