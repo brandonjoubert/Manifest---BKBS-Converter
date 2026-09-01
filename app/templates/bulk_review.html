@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Bulk review diffs · {{ site.name }}{% endblock %}
+{% block content %}
+  <p class="muted"><a href="/sites/{{ site.id }}/entities">← Review inbox</a></p>
+  <h1>Review claim diffs before bulk approve</h1>
+  <p class="subtitle">These items already have live approved facts. Bulk approve would publish every pending attribute below.</p>
+
+  {% for e in entities %}
+  {% set d = diffs.get(e.id, {}) %}
+  <div class="card">
+    <h2>{{ d.display_name or e.name }} <span class="pill pill-{{ e.status }}">{{ e.status }}</span></h2>
+    <p class="muted">{{ d.summary }}</p>
+    {% if d.changes %}
+    <ul>
+      {% for c in d.changes %}
+      <li>
+        <strong>{{ c.label }}</strong>
+        {% if c.kind == 'changed' %}
+        · live: <code>{{ c.old_display[:80] }}</code> → proposed: <code>{{ c.new_display[:80] }}</code>
+        {% else %}
+        · new: <code>{{ c.new_display[:80] }}</code>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No pending diffs.</p>
+    {% endif %}
+    <a class="btn btn-sm" href="/entities/{{ e.id }}">Review this entity</a>
+  </div>
+  {% endfor %}
+
+  <form method="post" action="/entities/bulk-verify">
+    <input type="hidden" name="site_id" value="{{ site.id }}" />
+    <input type="hidden" name="confirm_diffs" value="1" />
+    {% for e in entities %}
+    <input type="hidden" name="entity_ids" value="{{ e.id }}" />
+    {% endfor %}
+    <div class="btn-row">
+      <button class="btn btn-success" name="action" value="approve" type="submit">Approve all listed diffs</button>
+      <a class="btn" href="/sites/{{ site.id }}/entities">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

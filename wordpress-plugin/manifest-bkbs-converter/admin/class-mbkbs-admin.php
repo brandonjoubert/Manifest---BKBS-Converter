@@ -17,10 +17,12 @@ final class MBKBS_Admin
     public function hooks(): void
     {
         add_action('admin_menu', [$this, 'menu']);
+        add_action('admin_menu', [$this, 'hide_internal_pages'], 99);
         add_action('admin_enqueue_scripts', [$this, 'assets']);
         add_action('admin_post_mbkbs_save_settings', [$this, 'save_settings']);
         add_action('admin_post_mbkbs_scan', [$this, 'scan']);
         add_action('admin_post_mbkbs_save_entity', [$this, 'save_entity']);
+        add_action('admin_post_mbkbs_review_entity', [$this, 'review_entity']);
         add_action('admin_post_mbkbs_verify', [$this, 'verify']);
         add_action('admin_post_mbkbs_bulk_verify', [$this, 'bulk_verify']);
         add_action('admin_post_mbkbs_publish', [$this, 'publish']);
@@ -51,8 +53,14 @@ final class MBKBS_Admin
         add_submenu_page('mbkbs', __('Dashboard', 'manifest-bkbs'), __('Dashboard', 'manifest-bkbs'), 'manage_options', 'mbkbs', [$this, 'page_dashboard']);
         add_submenu_page('mbkbs', __('Entities', 'manifest-bkbs'), __('Entities', 'manifest-bkbs'), 'manage_options', 'mbkbs-entities', [$this, 'page_entities']);
         add_submenu_page('mbkbs', __('Edit entity', 'manifest-bkbs'), __('Edit entity', 'manifest-bkbs'), 'manage_options', 'mbkbs-entity', [$this, 'page_entity_edit']);
+        add_submenu_page('mbkbs', __('Bulk review', 'manifest-bkbs'), __('Bulk review', 'manifest-bkbs'), 'manage_options', 'mbkbs-bulk-review', [$this, 'page_bulk_review']);
         add_submenu_page('mbkbs', __('Settings', 'manifest-bkbs'), __('Settings', 'manifest-bkbs'), 'manage_options', 'mbkbs-settings', [$this, 'page_settings']);
         add_submenu_page('mbkbs', __('Tools', 'manifest-bkbs'), __('Tools', 'manifest-bkbs'), 'manage_options', 'mbkbs-tools', [$this, 'page_tools']);
+    }
+
+    public function hide_internal_pages(): void
+    {
+        remove_submenu_page('mbkbs', 'mbkbs-bulk-review');
     }
 
     public function page_tools(): void
@@ -107,10 +115,15 @@ final class MBKBS_Admin
     public function page_entities(): void
     {
         global $wpdb;
-        $status = isset($_GET['status']) ? sanitize_text_field(wp_unslash((string) $_GET['status'])) : '';
+        $status = isset($_GET['status']) ? sanitize_text_field(wp_unslash((string) $_GET['status'])) : 'inbox';
+        if ($status === '') {
+            $status = 'inbox';
+        }
         $sql = 'SELECT * FROM ' . MBKBS_Database::entities_table();
         $params = [];
-        if ($status !== '') {
+        if ($status === 'inbox') {
+            $sql .= " WHERE status IN ('pending','needs_edit')";
+        } elseif ($status !== 'all') {
             $sql .= ' WHERE status = %s';
             $params[] = $status;
         }
@@ -119,6 +132,8 @@ final class MBKBS_Admin
             ? $wpdb->get_results($wpdb->prepare($sql, ...$params), ARRAY_A)
             : $wpdb->get_results($sql, ARRAY_A);
         $entities = $entities ?: [];
+        $ids = array_map(static fn($e) => (string) $e['id'], $entities);
+        $diffs = MBKBS_Diff::for_ids($ids);
         $types = MBKBS_Plugin::entity_types();
         include MBKBS_PLUGIN_DIR . 'admin/views/entities.php';
     }
@@ -135,7 +150,30 @@ final class MBKBS_Admin
             wp_die(esc_html__('Entity not found.', 'manifest-bkbs'));
         }
         $types = MBKBS_Plugin::entity_types();
+        $diff = MBKBS_Diff::for_entity((string) $entity['id']);
+        if (($diff['display_name'] ?? '') === '') {
+            $diff['display_name'] = (string) $entity['name'];
+        }
         include MBKBS_PLUGIN_DIR . 'admin/views/entity-edit.php';
+    }
+
+    public function page_bulk_review(): void
+    {
+        global $wpdb;
+        $raw = isset($_GET['ids']) ? sanitize_text_field(wp_unslash((string) $_GET['ids'])) : '';
+        $ids = array_filter(explode(',', $raw));
+        $entities = [];
+        foreach ($ids as $id) {
+            $row = $wpdb->get_row(
+                $wpdb->prepare('SELECT * FROM ' . MBKBS_Database::entities_table() . ' WHERE id = %s', $id),
+                ARRAY_A
+            );
+            if (is_array($row)) {
+                $entities[] = $row;
+            }
+        }
+        $diffs = MBKBS_Diff::for_ids(array_map(static fn($e) => (string) $e['id'], $entities));
+        include MBKBS_PLUGIN_DIR . 'admin/views/bulk-review.php';
     }
 
     public function page_settings(): void
@@ -420,7 +458,46 @@ final class MBKBS_Admin
             $this->redirect('mbkbs-entities', 'Entity not found.', true);
         }
         MBKBS_Backfill::apply_human_decision($ent, $action, 'ui');
-        $this->redirect('mbkbs-entities', 'Entity updated.');
+        $this->redirect('mbkbs-entities', $this->review_toast($action === 'approve'));
+    }
+
+    public function review_entity(): void
+    {
+        $this->assert_admin();
+        check_admin_referer('mbkbs_review_entity');
+        $id = sanitize_text_field(wp_unslash($_POST['id'] ?? ''));
+        global $wpdb;
+        $entity = $wpdb->get_row(
+            $wpdb->prepare('SELECT * FROM ' . MBKBS_Database::entities_table() . ' WHERE id = %s', $id),
+            ARRAY_A
+        );
+        if (!is_array($entity)) {
+            $this->redirect('mbkbs-entities', 'Entity not found.', true);
+        }
+        $intent = sanitize_text_field(wp_unslash($_POST['intent'] ?? 'save'));
+        $submitted = [];
+        $extract = [];
+        foreach ($_POST as $key => $val) {
+            $key = (string) $key;
+            if (str_starts_with($key, 'claim:')) {
+                $submitted[substr($key, 6)] = is_string($val) ? wp_unslash($val) : '';
+            } elseif (str_starts_with($key, 'extract:')) {
+                $extract[substr($key, 8)] = is_string($val) ? wp_unslash($val) : '';
+            }
+        }
+        $notes = sanitize_textarea_field(wp_unslash($_POST['notes'] ?? ''));
+        if ($notes !== '') {
+            $wpdb->update(MBKBS_Database::entities_table(), ['notes' => $notes], ['id' => $id]);
+        }
+        MBKBS_Backfill::apply_review_from_form($entity, $intent, $submitted, $extract, 'ui');
+        $msg = $this->review_toast($intent === 'save_approve');
+        if (in_array($intent, ['save_approve', 'save_reject'], true)) {
+            $this->redirect('mbkbs-entities', $msg);
+        }
+        $url = admin_url('admin.php?page=mbkbs-entity&id=' . rawurlencode($id));
+        $url = add_query_arg('mbkbs_msg', rawurlencode($msg), $url);
+        wp_safe_redirect($url);
+        exit;
     }
 
     public function bulk_verify(): void
@@ -434,6 +511,9 @@ final class MBKBS_Admin
             $action = 'approve';
         }
         $ids = isset($_POST['entity_ids']) && is_array($_POST['entity_ids']) ? array_map('sanitize_text_field', wp_unslash($_POST['entity_ids'])) : [];
+        $confirm = sanitize_text_field(wp_unslash($_POST['confirm_diffs'] ?? '')) === '1';
+        $approved_n = 0;
+        $review_ids = [];
         foreach ($ids as $id) {
             $ent = $wpdb->get_row(
                 $wpdb->prepare('SELECT * FROM ' . MBKBS_Database::entities_table() . ' WHERE id = %s', $id),
@@ -442,9 +522,30 @@ final class MBKBS_Admin
             if (!is_array($ent)) {
                 continue;
             }
+            if ($action === 'approve' && !$confirm && !MBKBS_Diff::can_bulk_approve((string) $ent['id'])) {
+                $review_ids[] = (string) $ent['id'];
+                continue;
+            }
             MBKBS_Backfill::apply_human_decision($ent, $action, 'ui');
+            $approved_n++;
         }
-        $this->redirect('mbkbs-entities', sprintf('Updated %d entities.', count($ids)));
+        if ($action === 'approve' && $review_ids) {
+            $url = admin_url('admin.php?page=mbkbs-bulk-review');
+            $url = add_query_arg('ids', implode(',', $review_ids), $url);
+            $extra = $approved_n ? sprintf('Approved %d new entities. ', $approved_n) : '';
+            $url = add_query_arg('mbkbs_msg', rawurlencode($extra . 'Review claim diffs before bulk-approving previously published items.'), $url);
+            wp_safe_redirect($url);
+            exit;
+        }
+        $this->redirect('mbkbs-entities', sprintf('Updated %d entities.', $approved_n));
+    }
+
+    private function review_toast(bool $publish_intent): string
+    {
+        if (!$publish_intent) {
+            return 'saved, not published';
+        }
+        return 'Published · ' . untrailingslashit(home_url('/')) . '/llms.txt';
     }
 
     public function publish(): void

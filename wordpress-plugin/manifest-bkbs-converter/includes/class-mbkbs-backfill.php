@@ -531,8 +531,13 @@ final class MBKBS_Backfill
             $wpdb->update($table, ['status' => 'approved', 'last_updated' => $now], ['id' => $eid]);
         } elseif ($action === 'reject') {
             $stats['claims_rejected'] = self::reject_pending_claims($entity);
-            $entity['status'] = 'rejected';
-            $wpdb->update($table, ['status' => 'rejected', 'last_updated' => $now], ['id' => $eid]);
+            if (MBKBS_Diff::has_approved_claims($eid)) {
+                $entity['status'] = 'approved';
+                $wpdb->update($table, ['status' => 'approved', 'last_updated' => $now], ['id' => $eid]);
+            } else {
+                $entity['status'] = 'rejected';
+                $wpdb->update($table, ['status' => 'rejected', 'last_updated' => $now], ['id' => $eid]);
+            }
         } elseif ($action === 'needs_edit') {
             $entity['status'] = 'needs_edit';
             $wpdb->update($table, ['status' => 'needs_edit', 'last_updated' => $now], ['id' => $eid]);
@@ -574,5 +579,60 @@ final class MBKBS_Backfill
             );
         }
         return ['claims_written' => $n, 'claims_promoted' => 0, 'claims_rejected' => 0];
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     * @param array<string, string> $submitted
+     * @param array<string, string> $extract
+     * @return array{claims_written:int,claims_promoted:int,claims_rejected:int}
+     */
+    public static function apply_review_from_form(
+        array &$entity,
+        string $intent,
+        array $submitted,
+        array $extract,
+        ?string $approved_by = null
+    ): array {
+        if ($intent === 'save_reject') {
+            return self::apply_human_decision($entity, 'reject', $approved_by);
+        }
+        global $wpdb;
+        $stats = ['claims_written' => 0, 'claims_promoted' => 0, 'claims_rejected' => 0];
+        $eid = (string) $entity['id'];
+        $etype = (string) ($entity['entity_type'] ?? 'unknown');
+        $previous = (string) ($entity['status'] ?? '');
+        foreach ($submitted as $attr => $value) {
+            if (array_key_exists($attr, $extract) && $extract[$attr] === $value) {
+                continue;
+            }
+            if ($intent === 'save_approve') {
+                $stats['claims_written'] += self::insert_approved_claim($eid, $etype, $attr, $value, 'manual', $approved_by);
+            } else {
+                $stats['claims_written'] += self::insert_pending_claim($eid, $etype, $attr, $value, 'manual');
+            }
+        }
+        if ($intent === 'save_approve') {
+            $stats['claims_promoted'] = self::promote_pending_claims($entity, $approved_by);
+            $stats['claims_written'] += self::seed_missing_approved_claims($entity, $approved_by);
+            $entity['status'] = 'approved';
+            $wpdb->update(
+                MBKBS_Database::entities_table(),
+                ['status' => 'approved', 'last_updated' => current_time('mysql', true)],
+                ['id' => $eid]
+            );
+        } elseif ($stats['claims_written'] > 0 && $previous === 'approved') {
+            $entity['status'] = 'needs_edit';
+            $wpdb->update(
+                MBKBS_Database::entities_table(),
+                ['status' => 'needs_edit', 'last_updated' => current_time('mysql', true)],
+                ['id' => $eid]
+            );
+        }
+        if (isset($submitted['name']) && $submitted['name'] !== '') {
+            $wpdb->update(MBKBS_Database::entities_table(), ['name' => $submitted['name']], ['id' => $eid]);
+            $entity['name'] = $submitted['name'];
+        }
+        return $stats;
     }
 }

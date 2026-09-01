@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -32,7 +32,18 @@ from app.services.llm_settings import (
     save_llm_settings,
     test_llm_connection,
 )
-from app.services.claim_writer import apply_human_decision, apply_save_claims, write_surface_claims
+from app.services.claim_diff import (
+    can_bulk_approve,
+    claim_diff_for_entity,
+    claim_diffs_for_entities,
+    encode_submitted,
+)
+from app.services.claim_writer import (
+    apply_human_decision,
+    apply_review_from_form,
+    apply_save_claims,
+    write_surface_claims,
+)
 from app.services.merger import apply_extracted, external_key, snapshot_entity
 from app.services.publish_live import (
     publish_site_live,
@@ -41,6 +52,21 @@ from app.services.publish_live import (
 )
 from app.services.scan_runner import enqueue_scan
 from app.services.site_ops import delete_site_and_data
+
+
+def _review_toast(db: Session, site: Site, *, publish_intent: bool) -> str:
+    """Stage 5: knowledge republish only when auto_publish + root; never merge robots."""
+    if not publish_intent:
+        return "saved, not published"
+    if not getattr(site, "auto_publish", False):
+        return "saved, not published"
+    if resolve_publish_root(site) is None:
+        return "saved, not published"
+    result = publish_site_live(db, site, include_pending=False, merge_robots=False)
+    if result.ok:
+        base = (site.base_url or "").rstrip("/")
+        return f"Published · {base}/llms.txt"
+    return "saved, not published"
 
 APP_DIR = Path(__file__).resolve().parent
 
@@ -298,21 +324,27 @@ def ui_entities(
     if not site:
         return RedirectResponse("/?err=Site+not+found", status_code=303)
     query = db.query(Entity).filter(Entity.site_id == site_id)
-    if status:
-        query = query.filter(Entity.status == status)
+    status_key = status if status is not None else "inbox"
+    if status_key in ("", "inbox"):
+        status_key = "inbox"
+        query = query.filter(Entity.status.in_(["pending", "needs_edit"]))
+    elif status_key != "all":
+        query = query.filter(Entity.status == status_key)
     if entity_type:
         query = query.filter(Entity.entity_type == entity_type)
     if q:
         like = f"%{q}%"
         query = query.filter((Entity.name.ilike(like)) | (Entity.description.ilike(like)))
     entities = query.order_by(Entity.status, Entity.entity_type, Entity.name).limit(500).all()
+    diffs = claim_diffs_for_entities(db, [e.id for e in entities])
     return templates.TemplateResponse(
         request,
         "entities.html",
         {
             "site": site,
             "entities": entities,
-            "status": status or "",
+            "diffs": diffs,
+            "status": status_key,
             "entity_type": entity_type or "",
             "q": q or "",
             "entity_types": ENTITY_TYPES,
@@ -334,9 +366,15 @@ async def ui_bulk_verify(request: Request, db: Session = Depends(get_db)):
     action_key = str(action)
     if action_key not in ("approve", "reject", "needs_edit"):
         action_key = "approve"
+    confirm = str(form.get("confirm_diffs") or "") == "1"
+    approved_n = 0
+    review_ids: list[str] = []
     for eid in ids:
         ent = db.get(Entity, str(eid))
         if not ent:
+            continue
+        if action_key == "approve" and not confirm and not can_bulk_approve(db, ent.id):
+            review_ids.append(ent.id)
             continue
         apply_human_decision(db, ent, action_key, approved_by="ui")
         ent.last_updated = utcnow()
@@ -349,11 +387,54 @@ async def ui_bulk_verify(request: Request, db: Session = Depends(get_db)):
                 change_source=f"ui_bulk_{action_key}",
             )
         )
+        approved_n += 1
     db.commit()
+    if action_key == "approve" and review_ids:
+        q = ",".join(review_ids)
+        extra = f"Approved {approved_n} new entit{'y' if approved_n == 1 else 'ies'}. " if approved_n else ""
+        return RedirectResponse(
+            f"/sites/{site_id}/bulk-review?ids={q}&msg={extra}Review claim diffs before bulk-approving previously published items.",
+            status_code=303,
+        )
     return RedirectResponse(
-        f"/sites/{site_id}/entities?msg=Updated+{len(ids)}+entities",
+        f"/sites/{site_id}/entities?msg=Updated+{approved_n}+entities",
         status_code=303,
     )
+
+
+@app.get("/sites/{site_id}/bulk-review", response_class=HTMLResponse)
+def ui_bulk_review(site_id: str, request: Request, db: Session = Depends(get_db)):
+    site = db.get(Site, site_id)
+    if not site:
+        return RedirectResponse("/?err=Site+not+found", status_code=303)
+    raw = request.query_params.get("ids") or ""
+    ids = [i for i in raw.split(",") if i]
+    ents = [db.get(Entity, i) for i in ids]
+    ents = [e for e in ents if e is not None]
+    diffs = claim_diffs_for_entities(db, [e.id for e in ents])
+    return templates.TemplateResponse(
+        request,
+        "bulk_review.html",
+        {
+            "site": site,
+            "entities": ents,
+            "diffs": diffs,
+            "msg": request.query_params.get("msg"),
+        }
+        | llm_template_context(db),
+    )
+
+
+@app.get("/entities/{entity_id}/diff")
+def ui_entity_diff(entity_id: str, db: Session = Depends(get_db)):
+    ent = db.get(Entity, entity_id)
+    if not ent:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    diff = claim_diff_for_entity(db, entity_id)
+    diff["envelope_status"] = ent.status
+    if not diff.get("display_name"):
+        diff["display_name"] = ent.name
+    return diff
 
 
 @app.get("/entities/{entity_id}", response_class=HTMLResponse)
@@ -362,11 +443,15 @@ def ui_entity_edit(entity_id: str, request: Request, db: Session = Depends(get_d
     if not ent:
         return RedirectResponse("/?err=Entity+not+found", status_code=303)
     site = db.get(Site, ent.site_id)
+    diff = claim_diff_for_entity(db, ent.id)
+    if not diff.get("display_name"):
+        diff["display_name"] = ent.name
     return templates.TemplateResponse(
         request,
         "entity_edit.html",
         {
             "entity": ent,
+            "diff": diff,
             "site": site,
             "entity_types": ENTITY_TYPES,
             "entity_type_labels": ENTITY_TYPE_LABELS,
@@ -378,6 +463,62 @@ def ui_entity_edit(entity_id: str, request: Request, db: Session = Depends(get_d
             "err": request.query_params.get("err"),
         }
         | llm_template_context(db),
+    )
+
+
+@app.post("/entities/{entity_id}/review")
+async def ui_entity_review(entity_id: str, request: Request, db: Session = Depends(get_db)):
+    ent = db.get(Entity, entity_id)
+    if not ent:
+        return RedirectResponse("/?err=Entity+not+found", status_code=303)
+    site = db.get(Site, ent.site_id)
+    form = await request.form()
+    intent = str(form.get("intent") or "save")
+    submitted: dict[str, str] = {}
+    extract: dict[str, str] = {}
+    for key, val in form.items():
+        ks = str(key)
+        if ks.startswith("claim:"):
+            attr = ks[6:]
+            submitted[attr] = encode_submitted(attr, str(val))
+        elif ks.startswith("extract:"):
+            extract[ks[8:]] = str(val)
+    notes = str(form.get("notes") or "").strip()
+    if notes:
+        ent.notes = notes
+    ent.version = (ent.version or 1) + 1
+    ent.last_updated = utcnow()
+    apply_review_from_form(
+        db,
+        ent,
+        intent=intent,
+        submitted=submitted,
+        extract=extract,
+        approved_by="ui",
+    )
+    db.add(
+        EntityVersion(
+            entity_id=ent.id,
+            version=ent.version,
+            snapshot_json=snapshot_entity(ent),
+            change_source=f"ui_review_{intent}",
+        )
+    )
+    db.commit()
+    toast = _review_toast(db, site, publish_intent=(intent == "save_approve"))
+    if intent == "save_approve":
+        return RedirectResponse(
+            f"/sites/{ent.site_id}/entities?msg={toast.replace(' ', '+')}",
+            status_code=303,
+        )
+    if intent == "save_reject":
+        return RedirectResponse(
+            f"/sites/{ent.site_id}/entities?msg={toast.replace(' ', '+')}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        f"/entities/{entity_id}?msg={toast.replace(' ', '+')}",
+        status_code=303,
     )
 
 
@@ -454,15 +595,13 @@ def ui_entity_save(
         )
     )
     db.commit()
-    if intent == "save_approve":
+    site = db.get(Site, ent.site_id)
+    toast = _review_toast(db, site, publish_intent=(intent == "save_approve")) if site else "Saved"
+    if intent in ("save_approve", "save_reject"):
         return RedirectResponse(
-            f"/sites/{ent.site_id}/entities?msg=Saved+and+approved", status_code=303
+            f"/sites/{ent.site_id}/entities?msg={toast.replace(' ', '+')}", status_code=303
         )
-    if intent == "save_reject":
-        return RedirectResponse(
-            f"/sites/{ent.site_id}/entities?msg=Saved+and+rejected", status_code=303
-        )
-    return RedirectResponse(f"/entities/{entity_id}?msg=Saved", status_code=303)
+    return RedirectResponse(f"/entities/{entity_id}?msg={toast.replace(' ', '+')}", status_code=303)
 
 
 @app.post("/entities/{entity_id}/verify")
@@ -489,8 +628,10 @@ def ui_verify(
         )
     )
     db.commit()
+    site = db.get(Site, ent.site_id)
+    toast = _review_toast(db, site, publish_intent=(action == "approve")) if site else f"Entity {action}d"
     return RedirectResponse(
-        f"/sites/{ent.site_id}/entities?msg=Entity+{action}d",
+        f"/sites/{ent.site_id}/entities?msg={toast.replace(' ', '+')}",
         status_code=303,
     )
 

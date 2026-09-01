@@ -29,6 +29,7 @@ define('MBKBS_DB_VERSION', '2');
 
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-database.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-backfill.php';
+require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-diff.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-resolver.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-crawler.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-extractor.php';

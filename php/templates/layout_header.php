@@ -32,7 +32,11 @@
     .alert-err { background:rgba(243,18,96,.12); border:1px solid rgba(243,18,96,.35); color:var(--err); }
     .alert-warn { background:rgba(245,165,36,.12); border:1px solid rgba(245,165,36,.35); color:var(--warn); }
     .pill { display:inline-block; padding:.1rem .45rem; border-radius:999px; font-size:.72rem; font-weight:600; text-transform:uppercase; }
-    .pill-pending { background:rgba(245,165,36,.15); color:var(--warn); }
+    .pill-pending, .pill-needs_edit { background:rgba(245,165,36,.15); color:var(--warn); }
+    .diff-block { margin:0 0 1rem; padding-bottom:.75rem; border-bottom:1px solid var(--border); }
+    .diff-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+    .diff-old { margin:0; padding:.5rem .65rem; background:var(--bg); border:1px solid var(--border); border-radius:8px; white-space:pre-wrap; font-size:.85rem; color:var(--muted); }
+    .btn-row { display:flex; flex-wrap:wrap; gap:.5rem; margin:.75rem 0; }
     .pill-approved { background:rgba(61,214,140,.15); color:var(--ok); }
     .pill-rejected { background:rgba(243,18,96,.15); color:var(--err); }
     .pill-completed { background:rgba(61,214,140,.15); color:var(--ok); }

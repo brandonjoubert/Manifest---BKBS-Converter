@@ -22,8 +22,11 @@ match (true) {
             str_starts_with($route, 'sites/') && str_ends_with($route, '/settings') && $method === 'POST' => $this->siteSettings($this->idFrom($route, 1)),
             str_starts_with($route, 'sites/') && str_ends_with($route, '/delete') && $method === 'POST' => $this->siteDelete($this->idFrom($route, 1)),
             str_starts_with($route, 'sites/') && !str_contains(substr($route, 6), '/') && $method === 'GET' => $this->siteDetail($this->idFrom($route, 1)),
+            str_starts_with($route, 'sites/') && str_ends_with($route, '/bulk-review') && $method === 'GET' => $this->bulkReview($this->idFrom($route, 1)),
             str_starts_with($route, 'sites/') && str_ends_with($route, '/entities') && $method === 'GET' => $this->entities($this->idFrom($route, 1)),
             $route === 'entities/bulk' && $method === 'POST' => $this->bulkVerify(),
+            str_starts_with($route, 'entities/') && str_ends_with($route, '/diff') && $method === 'GET' => $this->entityDiff($this->idFrom($route, 1)),
+            str_starts_with($route, 'entities/') && str_ends_with($route, '/review') && $method === 'POST' => $this->entityReview($this->idFrom($route, 1)),
             str_starts_with($route, 'entities/') && !str_ends_with($route, '/verify') && $method === 'GET' => $this->entityEdit($this->idFrom($route, 1)),
             str_starts_with($route, 'entities/') && str_ends_with($route, '/verify') && $method === 'POST' => $this->verify($this->idFrom($route, 1)),
             str_starts_with($route, 'entities/') && !str_ends_with($route, '/verify') && $method === 'POST' => $this->entityUpdate($this->idFrom($route, 1)),
@@ -291,19 +294,28 @@ match (true) {
     private function entities(string $siteId): void
     {
         $site = $this->requireSite($siteId);
-        $status = $_GET['status'] ?? '';
+        $status = $_GET['status'] ?? 'inbox';
+        if ($status === '') {
+            $status = 'inbox';
+        }
         $sql = 'SELECT * FROM entities WHERE site_id = ?';
         $params = [$siteId];
-        if ($status !== '') {
+        if ($status === 'inbox') {
+            $sql .= " AND status IN ('pending','needs_edit')";
+        } elseif ($status !== 'all') {
             $sql .= ' AND status = ?';
             $params[] = $status;
         }
         $sql .= ' ORDER BY status, entity_type, name LIMIT 500';
-        $st = bkbs_db()->pdo()->prepare($sql);
+        $pdo = bkbs_db()->pdo();
+        $st = $pdo->prepare($sql);
         $st->execute($params);
+        $entities = $st->fetchAll();
+        $ids = array_map(static fn($e) => (string) $e['id'], $entities);
         render('entities', [
             'site' => $site,
-            'entities' => $st->fetchAll(),
+            'entities' => $entities,
+            'diffs' => Resolver::claimDiffsForIds($pdo, $ids),
             'status' => $status,
             'types' => entity_types(),
             'has_llm' => LlmClient::fromSettings(bkbs_db()) !== null,
@@ -321,8 +333,13 @@ match (true) {
             redirect(url('home'));
         }
         $site = $this->requireSite($entity['site_id']);
+        $diff = Resolver::claimDiff($db, (string) $entity['id']);
+        if (($diff['display_name'] ?? '') === '') {
+            $diff['display_name'] = (string) $entity['name'];
+        }
         render('entity_edit', [
             'entity' => $entity,
+            'diff' => $diff,
             'site' => $site,
             'types' => entity_types(),
             'has_llm' => LlmClient::fromSettings(bkbs_db()) !== null,
@@ -452,8 +469,88 @@ match (true) {
             redirect(url('home'));
         }
         Resolver::applyHumanDecision($pdo, $row, $action, 'ui');
-        flash_set('ok', 'Entity ' . $action . 'd');
+        $site = $this->requireSite((string) $row['site_id']);
+        flash_set('ok', $this->reviewToast($site, $action === 'approve'));
         redirect(url('sites/' . $row['site_id'] . '/entities'));
+    }
+
+    private function entityDiff(string $entityId): void
+    {
+        $pdo = bkbs_db()->pdo();
+        $st = $pdo->prepare('SELECT * FROM entities WHERE id = ?');
+        $st->execute([$entityId]);
+        $entity = $st->fetch(\PDO::FETCH_ASSOC);
+        if (!$entity) {
+            http_response_code(404);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'not found']);
+            exit;
+        }
+        $diff = Resolver::claimDiff($pdo, $entityId);
+        $diff['envelope_status'] = $entity['status'];
+        if (($diff['display_name'] ?? '') === '') {
+            $diff['display_name'] = (string) $entity['name'];
+        }
+        header('Content-Type: application/json');
+        echo json_encode($diff, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    private function entityReview(string $entityId): void
+    {
+        $pdo = bkbs_db()->pdo();
+        $st = $pdo->prepare('SELECT * FROM entities WHERE id = ?');
+        $st->execute([$entityId]);
+        $entity = $st->fetch(\PDO::FETCH_ASSOC);
+        if (!$entity) {
+            flash_set('err', 'Entity not found');
+            redirect(url('home'));
+        }
+        $intent = (string) ($_POST['intent'] ?? 'save');
+        $submitted = [];
+        $extract = [];
+        foreach ($_POST as $key => $val) {
+            $key = (string) $key;
+            if (str_starts_with($key, 'claim:')) {
+                $submitted[substr($key, 6)] = (string) $val;
+            } elseif (str_starts_with($key, 'extract:')) {
+                $extract[substr($key, 8)] = (string) $val;
+            }
+        }
+        if (trim((string) ($_POST['notes'] ?? '')) !== '') {
+            $pdo->prepare('UPDATE entities SET notes = ? WHERE id = ?')
+                ->execute([trim((string) $_POST['notes']), $entityId]);
+        }
+        Resolver::applyReviewFromForm($pdo, $entity, $intent, $submitted, $extract, 'ui');
+        $site = $this->requireSite((string) $entity['site_id']);
+        flash_set('ok', $this->reviewToast($site, $intent === 'save_approve'));
+        if (in_array($intent, ['save_approve', 'save_reject'], true)) {
+            redirect(url('sites/' . $entity['site_id'] . '/entities'));
+        }
+        redirect(url('entities/' . $entityId));
+    }
+
+    private function bulkReview(string $siteId): void
+    {
+        $site = $this->requireSite($siteId);
+        $ids = array_filter(explode(',', (string) ($_GET['ids'] ?? '')));
+        $pdo = bkbs_db()->pdo();
+        $entities = [];
+        $st = $pdo->prepare('SELECT * FROM entities WHERE id = ?');
+        foreach ($ids as $id) {
+            $st->execute([(string) $id]);
+            $row = $st->fetch(\PDO::FETCH_ASSOC);
+            if ($row) {
+                $entities[] = $row;
+            }
+        }
+        $eids = array_map(static fn($e) => (string) $e['id'], $entities);
+        render('bulk_review', [
+            'site' => $site,
+            'entities' => $entities,
+            'diffs' => Resolver::claimDiffsForIds($pdo, $eids),
+            'has_llm' => LlmClient::fromSettings(bkbs_db()) !== null,
+        ]);
     }
 
     private function bulkVerify(): void
@@ -468,18 +565,53 @@ match (true) {
         if (!is_array($ids)) {
             $ids = [];
         }
+        $confirm = (string) ($_POST['confirm_diffs'] ?? '') === '1';
         $pdo = bkbs_db()->pdo();
         $load = $pdo->prepare('SELECT * FROM entities WHERE id = ?');
+        $approvedN = 0;
+        $reviewIds = [];
         foreach ($ids as $id) {
             $load->execute([(string) $id]);
             $ent = $load->fetch(\PDO::FETCH_ASSOC);
             if (!$ent) {
                 continue;
             }
+            if ($action === 'approve' && !$confirm && !Resolver::canBulkApprove($pdo, (string) $ent['id'])) {
+                $reviewIds[] = (string) $ent['id'];
+                continue;
+            }
             Resolver::applyHumanDecision($pdo, $ent, $action, 'ui');
+            $approvedN++;
         }
-        flash_set('ok', 'Updated ' . count($ids) . ' entities');
+        if ($action === 'approve' && $reviewIds) {
+            $extra = $approvedN ? "Approved {$approvedN} new entities. " : '';
+            flash_set('ok', $extra . 'Review claim diffs before bulk-approving previously published items.');
+            redirect(url('sites/' . $siteId . '/bulk-review') . '?ids=' . rawurlencode(implode(',', $reviewIds)));
+        }
+        flash_set('ok', 'Updated ' . $approvedN . ' entities');
         redirect(url('sites/' . $siteId . '/entities'));
+    }
+
+    /** @param array<string, mixed> $site */
+    private function reviewToast(array $site, bool $publishIntent): string
+    {
+        if (!$publishIntent || empty($site['auto_publish'])) {
+            return 'saved, not published';
+        }
+        $root = trim((string) ($site['publish_root'] ?? ''));
+        if ($root === '') {
+            $cfg = bkbs_config();
+            $root = trim((string) ($cfg['default_publish_root'] ?? ''));
+        }
+        if ($root === '') {
+            return 'saved, not published';
+        }
+        $entities = Resolver::resolveSite(bkbs_db()->pdo(), (string) $site['id'], false);
+        $result = (new Publisher())->publish($site, $entities, $root, false);
+        if (!empty($result['ok'])) {
+            return 'Published · ' . rtrim((string) $site['base_url'], '/') . '/llms.txt';
+        }
+        return 'saved, not published';
     }
 
     private function publish(string $id): void

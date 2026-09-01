@@ -1,74 +1,64 @@
-<p class="muted"><a href="<?= h(url('sites/' . $site['id'] . '/entities')) ?>">← Entities</a> · <?= h($site['name']) ?></p>
-<h1>Review & edit entity</h1>
+<p class="muted"><a href="<?= h(url('sites/' . $site['id'] . '/entities')) ?>">← Review inbox</a> · <?= h($site['name']) ?></p>
+<h1>Review changes</h1>
 
 <p class="subtitle">
   <span class="pill pill-<?= h($entity['status']) ?>"><?= h($entity['status']) ?></span>
   · <?= h($types[$entity['entity_type']] ?? $entity['entity_type']) ?>
-  · source <?= h($entity['source']) ?>
-  · v<?= h($entity['version']) ?>
+  · <?= h($diff['summary'] ?? '') ?>
 </p>
 
-<?php if (in_array($entity['status'], ['pending', 'needs_edit'], true)): ?>
-<div class="alert alert-warn">
-  This entry is not published yet. Edit the fields below, then <strong>Save</strong> and/or
-  <strong>Save & approve</strong> when the fact is correct.
-</div>
+<?php if (($entity['status'] ?? '') === 'needs_edit'): ?>
+<div class="alert alert-ok">Live facts are still published. Approving replaces them; rejecting keeps the last approved snapshot live.</div>
+<?php elseif (in_array($entity['status'], ['pending'], true)): ?>
+<div class="alert alert-warn">This entity is not published yet. Approve only facts you have checked.</div>
 <?php endif; ?>
 
-<form class="card" method="post" action="<?= h(url('entities/' . $entity['id'])) ?>">
-  <div class="form-row">
-    <div>
-      <label for="name">Name</label>
-      <input id="name" name="name" type="text" required value="<?= h($entity['name']) ?>" />
-    </div>
-    <div>
-      <label for="entity_type">Entity type</label>
-      <select id="entity_type" name="entity_type">
-        <?php foreach ($types as $key => $label): ?>
-          <option value="<?= h($key) ?>" <?= $entity['entity_type'] === $key ? 'selected' : '' ?>><?= h($label) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-  </div>
+<form class="card" method="post" action="<?= h(url('entities/' . $entity['id'] . '/review')) ?>">
+  <h2>Changes</h2>
+  <?php if (!empty($diff['changes'])): ?>
+    <?php foreach ($diff['changes'] as $c): ?>
+      <div class="diff-block">
+        <h3><?= h($c['label']) ?> <span class="muted"><?= h($c['kind']) ?></span></h3>
+        <?php if (($c['kind'] ?? '') === 'changed'): ?>
+          <div class="diff-grid">
+            <div>
+              <div class="muted">Last approved (live)</div>
+              <pre class="diff-old"><?= h((string) ($c['old_display'] ?? '')) ?></pre>
+            </div>
+            <div>
+              <div class="muted">Proposed</div>
+              <textarea name="claim:<?= h($c['attribute']) ?>"><?= h((string) ($c['new_display'] ?? '')) ?></textarea>
+            </div>
+          </div>
+        <?php else: ?>
+          <div class="muted">New fact (not published yet)</div>
+          <textarea name="claim:<?= h($c['attribute']) ?>"><?= h((string) ($c['new_display'] ?? '')) ?></textarea>
+        <?php endif; ?>
+        <textarea hidden name="extract:<?= h($c['attribute']) ?>"><?= h((string) ($c['new'] ?? '')) ?></textarea>
+      </div>
+    <?php endforeach; ?>
+  <?php else: ?>
+    <p class="muted">No pending claim diffs.</p>
+  <?php endif; ?>
 
-  <label for="description">Description</label>
-  <textarea id="description" name="description" class="tall" style="font-family:inherit"><?= h($entity['description'] ?? '') ?></textarea>
-
-  <div class="form-row">
-    <div>
-      <label for="status">Status</label>
-      <select id="status" name="status">
-        <?php foreach (['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected', 'needs_edit' => 'Needs edit'] as $k => $lab): ?>
-          <option value="<?= h($k) ?>" <?= $entity['status'] === $k ? 'selected' : '' ?>><?= h($lab) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-    <div>
-      <label for="trust_level">Trust level</label>
-      <select id="trust_level" name="trust_level">
-        <?php foreach (['low', 'medium', 'high'] as $t): ?>
-          <option value="<?= $t ?>" <?= $entity['trust_level'] === $t ? 'selected' : '' ?>><?= ucfirst($t) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
+  <div class="btn-row">
+    <button class="btn btn-success" type="submit" name="intent" value="save_approve">Approve</button>
+    <button class="btn btn-primary" type="submit" name="intent" value="save">Save without approve</button>
+    <button class="btn btn-danger" type="submit" name="intent" value="save_reject">Reject</button>
+    <a class="btn" href="<?= h(url('sites/' . $site['id'] . '/entities')) ?>">Back to inbox</a>
   </div>
 
   <label for="notes">Reviewer notes</label>
-  <textarea id="notes" name="notes" style="font-family:inherit"><?= h($entity['notes'] ?? '') ?></textarea>
+  <textarea id="notes" name="notes"><?= h($entity['notes'] ?? '') ?></textarea>
 
-  <label for="properties_json">Properties (JSON)</label>
-  <textarea id="properties_json" name="properties_json" class="tall"><?= h(json_encode(json_decode($entity['properties'] ?? '{}', true), JSON_PRETTY_PRINT)) ?></textarea>
-
-  <label for="relationships_json">Relationships (JSON array)</label>
-  <textarea id="relationships_json" name="relationships_json" class="tall"><?= h(json_encode(json_decode($entity['relationships'] ?? '[]', true), JSON_PRETTY_PRINT)) ?></textarea>
-
-  <label for="evidence_json">Evidence (JSON array)</label>
-  <textarea id="evidence_json" name="evidence_json" class="tall"><?= h(json_encode(json_decode($entity['evidence'] ?? '[]', true), JSON_PRETTY_PRINT)) ?></textarea>
-
-  <div class="btn-row">
-    <button class="btn btn-primary" type="submit" name="intent" value="save">Save changes</button>
-    <button class="btn btn-success" type="submit" name="intent" value="save_approve">Save & approve</button>
-    <button class="btn btn-danger" type="submit" name="intent" value="save_reject">Save & reject</button>
-    <a class="btn" href="<?= h(url('sites/' . $site['id'] . '/entities')) ?>">Back to list</a>
-  </div>
+  <?php if (!empty($diff['unchanged'])): ?>
+  <details class="card">
+    <summary>Unchanged / already live (<?= count($diff['unchanged']) ?>)</summary>
+    <ul class="muted">
+      <?php foreach ($diff['unchanged'] as $u): ?>
+        <li><strong><?= h($u['label']) ?>:</strong> <?= h(substr((string) ($u['display'] ?? ''), 0, 240)) ?></li>
+      <?php endforeach; ?>
+    </ul>
+  </details>
+  <?php endif; ?>
 </form>

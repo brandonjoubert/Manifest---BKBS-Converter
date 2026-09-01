@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claim Ledger Stage 5** (claim-level review UI, all three editions)
+  - `GET /diff` (Python `/api/entities/{id}/diff` and `/entities/{id}/diff`; PHP `entities/{id}/diff`) — old = last approved claim, new = latest pending; never entity columns
+  - Inbox defaults to pending + needs_edit with a one-line change summary and **Review changes**
+  - Review-first page: new-fact vs changed-fact layouts; needs_edit copy: “Live facts are still published.”
+  - Save rule: typed value ≠ extract → manual claim; Save without approve stays pending; Approve with no edit promotes extract; Reject keeps last approved live
+  - Bulk approve is new entities only (or a diffs confirmation list); cannot launder `needs_edit`
+  - Republish knowledge files only when auto_publish + root; no robots re-merge; toast live URL vs “saved, not published”
+  - Tests: `tests/test_review_stage5.py`
 - **Claim Ledger Stage 4b** (export adapters, golden-stable, all three editions)
   - Python: `app/exports/` (`llms_txt`, `schema_org`, `graph_json`, `agent_json`, `robots`); production export/publish import adapters; old `export_*.py` modules are shims
   - PHP Host: `php/src/Exports/*`; `Publisher` writes via adapters

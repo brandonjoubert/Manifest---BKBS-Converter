@@ -17,6 +17,7 @@ from app.schemas import (
     FreeTextConvert,
     VerifyAction,
 )
+from app.services.claim_diff import can_bulk_approve, claim_diff_for_entity
 from app.services.claim_writer import apply_human_decision, apply_save_claims, write_surface_claims
 from app.services.extractor_llm import convert_free_text
 from app.services.merger import apply_extracted, external_key, snapshot_entity
@@ -83,6 +84,18 @@ def update_entity(entity_id: str, body: EntityUpdate, db: Session = Depends(get_
     return ent
 
 
+@router.get("/api/entities/{entity_id}/diff")
+def entity_diff(entity_id: str, db: Session = Depends(get_db)):
+    ent = db.get(Entity, entity_id)
+    if not ent:
+        raise HTTPException(404, "Entity not found")
+    diff = claim_diff_for_entity(db, entity_id)
+    diff["envelope_status"] = ent.status
+    if not diff.get("display_name"):
+        diff["display_name"] = ent.name
+    return diff
+
+
 @router.post("/api/entities/{entity_id}/verify", response_model=EntityOut)
 def verify_entity(entity_id: str, body: VerifyAction, db: Session = Depends(get_db)):
     ent = db.get(Entity, entity_id)
@@ -107,9 +120,13 @@ def verify_entity(entity_id: str, body: VerifyAction, db: Session = Depends(get_
 @router.post("/api/entities/bulk-verify")
 def bulk_verify(body: BulkVerify, db: Session = Depends(get_db)):
     updated = 0
+    skipped: list[str] = []
     for eid in body.entity_ids:
         ent = db.get(Entity, eid)
         if not ent:
+            continue
+        if body.action == "approve" and not can_bulk_approve(db, ent.id):
+            skipped.append(ent.id)
             continue
         apply_human_decision(db, ent, body.action, approved_by="api")
         ent.last_updated = utcnow()
@@ -124,7 +141,7 @@ def bulk_verify(body: BulkVerify, db: Session = Depends(get_db)):
         )
         updated += 1
     db.commit()
-    return {"updated": updated}
+    return {"updated": updated, "skipped": skipped}
 
 
 @router.post("/api/sites/{site_id}/entities", response_model=EntityOut)

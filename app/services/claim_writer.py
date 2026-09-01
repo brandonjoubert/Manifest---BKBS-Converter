@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Claim, utcnow
-from app.services.claim_codec import entity_attribute_pairs
+from app.services.claim_codec import decode_claim_value, entity_attribute_pairs
 
 
 def latest_claim(
@@ -372,7 +372,14 @@ def apply_human_decision(
         entity.status = "approved"  # type: ignore[attr-defined]
     elif action == "reject":
         stats["claims_rejected"] = reject_pending_claims(db, entity)
-        entity.status = "rejected"  # type: ignore[attr-defined]
+        # Stage 5: reject pending diffs but keep last approved live when any exist.
+        from app.services.claim_diff import has_approved_claims
+
+        eid = str(getattr(entity, "id"))
+        if has_approved_claims(db, eid):
+            entity.status = "approved"  # type: ignore[attr-defined]
+        else:
+            entity.status = "rejected"  # type: ignore[attr-defined]
     elif action == "needs_edit":
         entity.status = "needs_edit"  # type: ignore[attr-defined]
     return stats
@@ -406,3 +413,76 @@ def apply_save_claims(
     if n and previous_status == "approved" and envelope not in ("pending", "rejected"):
         entity.status = "needs_edit"  # type: ignore[attr-defined]
     return {"claims_written": n, "claims_promoted": 0, "claims_rejected": 0}
+
+
+def apply_review_from_form(
+    db: Session,
+    entity: object,
+    *,
+    intent: str,
+    submitted: dict[str, str],
+    extract: dict[str, str],
+    approved_by: str | None = None,
+) -> dict[str, int]:
+    """Stage 5 save rule.
+
+    typed value ≠ extract → new manual claim.
+    Save without approve stays pending.
+    Approve with no edit promotes extract.
+    Reject keeps last approved live.
+    """
+    entity_id = str(getattr(entity, "id"))
+    entity_type = str(getattr(entity, "entity_type") or "unknown")
+    if intent == "save_reject":
+        return apply_human_decision(db, entity, "reject", approved_by=approved_by)
+
+    stats = {"claims_written": 0, "claims_promoted": 0, "claims_rejected": 0}
+    previous = str(getattr(entity, "status", "") or "")
+
+    for attr, value in submitted.items():
+        extract_val = extract.get(attr)
+        if extract_val is not None and extract_val == value:
+            continue
+        if intent == "save_approve":
+            insert_approved_claim(
+                db,
+                entity_id=entity_id,
+                entity_type=entity_type,
+                attribute=attr,
+                value=value,
+                extraction_method="manual",
+                approved_by=approved_by,
+            )
+            stats["claims_written"] += 1
+        else:
+            insert_pending_claim(
+                db,
+                entity_id=entity_id,
+                entity_type=entity_type,
+                attribute=attr,
+                value=value,
+                extraction_method="manual",
+            )
+            stats["claims_written"] += 1
+
+    if intent == "save_approve":
+        stats["claims_promoted"] = promote_pending_claims(
+            db, entity, approved_by=approved_by
+        )
+        stats["claims_written"] += seed_missing_approved_claims(
+            db, entity, approved_by=approved_by
+        )
+        entity.status = "approved"  # type: ignore[attr-defined]
+    else:
+        if stats["claims_written"] and previous == "approved":
+            entity.status = "needs_edit"  # type: ignore[attr-defined]
+        elif previous == "approved" and getattr(entity, "status", None) == "approved":
+            pass
+    if "name" in submitted:
+        decoded = decode_claim_value(submitted["name"])
+        if decoded:
+            entity.name = str(decoded)  # type: ignore[attr-defined]
+    if "description" in submitted:
+        decoded = decode_claim_value(submitted["description"])
+        entity.description = str(decoded) if decoded else None  # type: ignore[attr-defined]
+    return stats

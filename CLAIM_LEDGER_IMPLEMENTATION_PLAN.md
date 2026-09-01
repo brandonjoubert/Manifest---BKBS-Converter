@@ -5,7 +5,7 @@
 
 **Generated:** 2026-07-28  
 **Updated:** 2026-08-18  
-**Status:** Stage 0–4a complete. **Stage 4b** adapters implemented (goldens unchanged). Next: Stage 5 review UI, then 4c artifacts. /autoplan B2 applied 2026-08-18.
+**Status:** Stage 0–5 complete (writers, public-set, adapters, claim review UI). Next: Stage 4c artifacts. /autoplan B2 applied 2026-08-18.
 
 ---
 
@@ -263,10 +263,10 @@ CREATE INDEX idx_claims_supersedes ON claims(supersedes_id);
 **Republish:** knowledge files only if `auto_publish` + root set; never re-merge robots as a side effect of one claim. Toast: live URL vs “saved, not published.”
 
 ### EXIT
-- [ ] Diff old/new matches 4a writers
-- [ ] Approve/reject update claims; live files follow publication rule
-- [ ] Bulk cannot launder `needs_edit` diffs
-- [ ] Triple edition
+- [x] Diff old/new matches 4a writers — `claim_diff` / `Resolver::claimDiff` / `MBKBS_Diff`
+- [x] Approve/reject update claims; live files follow publication rule
+- [x] Bulk cannot launder `needs_edit` diffs
+- [x] Triple edition
 
 ### ROLLBACK
 - Revert UI; keep 4a writers
@@ -445,9 +445,9 @@ curl -s http://127.0.0.1:8765/health
 
 ## Next Action
 
-**Stages 0–4b complete** (writers, public-set, adapters).  
+**Stages 0–5 complete** (writers, public-set, adapters, claim review UI).  
 
-Next: **Stage 5** claim-level review UI. Then 4c artifacts. Stage 6 is **columns only**. Stage 9 still gated.
+Next: **Stage 4c** artifacts (JSON-LD snippet, WP inject off by default, honest `agent.json`, AIPREF). Stage 6 is **columns only**. Stage 9 still gated.
 
 ---
 

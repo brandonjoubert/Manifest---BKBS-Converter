@@ -9,7 +9,7 @@ final class Publisher
      * @param list<array<string,mixed>> $entities
      * @return array{ok:bool,root?:string,files?:list<string>,error?:string,entity_count?:int}
      */
-    public function publish(array $site, array $entities, string $publishRoot): array
+    public function publish(array $site, array $entities, string $publishRoot, bool $mergeRobots = true): array
     {
         $raw = trim($publishRoot);
         $localHint = dirname(__DIR__) . '/data/live-public';
@@ -113,8 +113,10 @@ final class Publisher
         $this->write($root . '/bkbs/README.txt', "BKBS PHP edition published for {$site['name']}\n");
         $files[] = 'bkbs/README.txt';
 
-        Exports\Robots::merge($root, $site['base_url']);
-        $files[] = 'robots.txt';
+        if ($mergeRobots) {
+            Exports\Robots::merge($root, $site['base_url']);
+            $files[] = 'robots.txt';
+        }
 
         return [
             'ok' => true,

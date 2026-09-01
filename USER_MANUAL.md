@@ -305,7 +305,7 @@ When you add services, change contact details, or publish new pages:
 
 1. Open the site.  
 2. Click **Rescan website**.  
-3. Review **pending** and **needs_edit** items.  
+3. Open the **review inbox** (pending + needs edit). Use **Review changes** to compare last approved vs pending claims, then approve, save without approve, or reject (live facts stay published on needs_edit until you approve).  
 4. Export again and re-deploy updated files.
 
 **Rescan behaviour (important):**

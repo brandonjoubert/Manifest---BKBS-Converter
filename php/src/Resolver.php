@@ -590,9 +590,15 @@ final class Resolver
                 ->execute(['approved', gmdate('c'), $eid]);
         } elseif ($action === 'reject') {
             $stats['claims_rejected'] = self::rejectPendingClaims($pdo, $entity);
-            $entity['status'] = 'rejected';
-            $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
-                ->execute(['rejected', gmdate('c'), $eid]);
+            if (self::hasApprovedClaims($pdo, $eid)) {
+                $entity['status'] = 'approved';
+                $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
+                    ->execute(['approved', gmdate('c'), $eid]);
+            } else {
+                $entity['status'] = 'rejected';
+                $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
+                    ->execute(['rejected', gmdate('c'), $eid]);
+            }
         } elseif ($action === 'needs_edit') {
             $entity['status'] = 'needs_edit';
             $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
@@ -633,6 +639,196 @@ final class Resolver
                 ->execute(['needs_edit', gmdate('c'), (string) $entity['id']]);
         }
         return ['claims_written' => $n, 'claims_promoted' => 0, 'claims_rejected' => 0];
+    }
+
+    public static function hasApprovedClaims(\PDO $pdo, string $entityId): bool
+    {
+        $st = $pdo->prepare('SELECT 1 FROM claims WHERE entity_id = ? AND status = ? LIMIT 1');
+        $st->execute([$entityId, 'approved']);
+        return (bool) $st->fetchColumn();
+    }
+
+    public static function canBulkApprove(\PDO $pdo, string $entityId): bool
+    {
+        return !self::hasApprovedClaims($pdo, $entityId);
+    }
+
+    public static function attributeLabel(string $attr): string
+    {
+        if (str_starts_with($attr, self::PROP_PREFIX)) {
+            return substr($attr, strlen(self::PROP_PREFIX));
+        }
+        return ucwords(str_replace('_', ' ', $attr));
+    }
+
+    public static function displayValue(?string $raw): string
+    {
+        if ($raw === null || $raw === '') {
+            return '';
+        }
+        $decoded = self::decodeClaimValue($raw);
+        if (is_array($decoded)) {
+            return json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: $raw;
+        }
+        return (string) $decoded;
+    }
+
+    /**
+     * @param list<string> $entityIds
+     * @return array<string, array<string, mixed>>
+     */
+    public static function claimDiffsForIds(\PDO $pdo, array $entityIds): array
+    {
+        $out = [];
+        foreach ($entityIds as $eid) {
+            $out[$eid] = self::claimDiff($pdo, $eid);
+        }
+        return $out;
+    }
+
+    /** @return array<string, mixed> */
+    public static function claimDiff(\PDO $pdo, string $entityId): array
+    {
+        $approved = [];
+        $st = $pdo->prepare('SELECT * FROM claims WHERE entity_id = ? AND status = ?');
+        $st->execute([$entityId, 'approved']);
+        while ($row = $st->fetch(\PDO::FETCH_ASSOC)) {
+            $attr = (string) $row['attribute'];
+            $prev = $approved[$attr] ?? null;
+            if ($prev === null || (int) $row['id'] > (int) $prev['id']) {
+                $approved[$attr] = $row;
+            }
+        }
+        $pending = [];
+        $st->execute([$entityId, 'pending']);
+        while ($row = $st->fetch(\PDO::FETCH_ASSOC)) {
+            $attr = (string) $row['attribute'];
+            $prev = $pending[$attr] ?? null;
+            if ($prev === null || (int) $row['id'] > (int) $prev['id']) {
+                $pending[$attr] = $row;
+            }
+        }
+        $attrs = array_values(array_unique(array_merge(array_keys($approved), array_keys($pending))));
+        usort($attrs, static function (string $a, string $b): int {
+            $order = ['name' => 0, 'description' => 1, 'trust_level' => 2, 'source' => 3];
+            $ra = $order[$a] ?? (str_starts_with($a, 'prop:') ? 10 : 20);
+            $rb = $order[$b] ?? (str_starts_with($b, 'prop:') ? 10 : 20);
+            if ($ra !== $rb) {
+                return $ra <=> $rb;
+            }
+            return $a <=> $b;
+        });
+        $changes = [];
+        $unchanged = [];
+        foreach ($attrs as $attr) {
+            $old = $approved[$attr] ?? null;
+            $new = $pending[$attr] ?? null;
+            $oldRaw = $old['value'] ?? null;
+            $newRaw = $new['value'] ?? null;
+            if ($new === null) {
+                $unchanged[] = [
+                    'attribute' => $attr,
+                    'label' => self::attributeLabel($attr),
+                    'value' => (string) $oldRaw,
+                    'display' => self::displayValue($oldRaw !== null ? (string) $oldRaw : null),
+                ];
+                continue;
+            }
+            if ($old !== null && (string) $oldRaw === (string) $newRaw) {
+                $unchanged[] = [
+                    'attribute' => $attr,
+                    'label' => self::attributeLabel($attr),
+                    'value' => (string) $oldRaw,
+                    'display' => self::displayValue((string) $oldRaw),
+                ];
+                continue;
+            }
+            $kind = $old === null ? 'new' : 'changed';
+            $changes[] = [
+                'attribute' => $attr,
+                'label' => self::attributeLabel($attr),
+                'kind' => $kind,
+                'old' => $oldRaw,
+                'new' => (string) $newRaw,
+                'old_display' => $oldRaw !== null ? self::displayValue((string) $oldRaw) : null,
+                'new_display' => self::displayValue($newRaw !== null ? (string) $newRaw : null),
+                'extraction_method' => (string) ($new['extraction_method'] ?? 'scan'),
+            ];
+        }
+        $isNew = $approved === [];
+        $n = count($changes);
+        if ($isNew && $n > 0) {
+            $summary = 'New entity · ' . $n . ' fact' . ($n === 1 ? '' : 's');
+        } elseif ($n > 0) {
+            $labels = array_map(static fn($c) => $c['label'], array_slice($changes, 0, 3));
+            $summary = $n . ' change' . ($n === 1 ? '' : 's') . ': ' . implode(', ', $labels);
+        } else {
+            $summary = 'No pending changes';
+        }
+        $name = $pending['name']['value'] ?? $approved['name']['value'] ?? '';
+        return [
+            'entity_id' => $entityId,
+            'is_new_entity' => $isNew,
+            'has_pending' => $pending !== [],
+            'can_bulk_approve' => $isNew,
+            'summary' => $summary,
+            'display_name' => (string) $name,
+            'changes' => $changes,
+            'unchanged' => $unchanged,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $entity
+     * @param array<string, string> $submitted
+     * @param array<string, string> $extract
+     * @return array{claims_written:int,claims_promoted:int,claims_rejected:int}
+     */
+    public static function applyReviewFromForm(
+        \PDO $pdo,
+        array &$entity,
+        string $intent,
+        array $submitted,
+        array $extract,
+        ?string $approvedBy = null
+    ): array {
+        if ($intent === 'save_reject') {
+            return self::applyHumanDecision($pdo, $entity, 'reject', $approvedBy);
+        }
+        $stats = ['claims_written' => 0, 'claims_promoted' => 0, 'claims_rejected' => 0];
+        $eid = (string) $entity['id'];
+        $etype = (string) ($entity['entity_type'] ?? 'unknown');
+        $previous = (string) ($entity['status'] ?? '');
+        foreach ($submitted as $attr => $value) {
+            if (array_key_exists($attr, $extract) && $extract[$attr] === $value) {
+                continue;
+            }
+            if ($intent === 'save_approve') {
+                $stats['claims_written'] += self::insertApprovedClaim(
+                    $pdo, $eid, $etype, $attr, $value, 'manual', $approvedBy
+                );
+            } else {
+                $stats['claims_written'] += self::insertPendingClaim(
+                    $pdo, $eid, $etype, $attr, $value, 'manual'
+                );
+            }
+        }
+        if ($intent === 'save_approve') {
+            $stats['claims_promoted'] = self::promotePendingClaims($pdo, $entity, $approvedBy);
+            $stats['claims_written'] += self::seedMissingApprovedClaims($pdo, $entity, $approvedBy);
+            $entity['status'] = 'approved';
+            $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
+                ->execute(['approved', gmdate('c'), $eid]);
+        } elseif ($stats['claims_written'] > 0 && $previous === 'approved') {
+            $entity['status'] = 'needs_edit';
+            $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
+                ->execute(['needs_edit', gmdate('c'), $eid]);
+        }
+        if (isset($submitted['name']) && $submitted['name'] !== '') {
+            $pdo->prepare('UPDATE entities SET name = ? WHERE id = ?')->execute([$submitted['name'], $eid]);
+            $entity['name'] = $submitted['name'];
+        }
+        return $stats;
     }
 
     /** @return array<string, mixed> */

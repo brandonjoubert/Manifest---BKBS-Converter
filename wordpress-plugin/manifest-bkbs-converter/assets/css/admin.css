@@ -70,3 +70,13 @@
   width: 100%;
   max-width: 640px;
 }
+.mbkbs-diff { margin: 0 0 16px; padding-bottom: 12px; border-bottom: 1px solid #dcdcde; }
+.mbkbs-diff-old {
+  background: #f6f7f7;
+  border: 1px solid #dcdcde;
+  border-radius: 4px;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  font-size: 13px;
+  color: #646970;
+}

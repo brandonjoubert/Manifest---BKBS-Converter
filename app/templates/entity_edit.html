@@ -1,76 +1,86 @@
 {% extends "base.html" %}
-{% block title %}{{ entity.name }} · Review &amp; edit{% endblock %}
+{% block title %}{{ diff.display_name or entity.name }} · Review{% endblock %}
 {% block content %}
-  <p class="muted"><a href="/sites/{{ site.id }}/entities">← Entities</a> · {{ site.name }}</p>
-  <h1>Review &amp; edit entity</h1>
+  <p class="muted"><a href="/sites/{{ site.id }}/entities">← Review inbox</a> · {{ site.name }}</p>
+  <h1>Review changes</h1>
   <p class="subtitle">
     <span class="pill pill-{{ entity.status }}">{{ entity.status }}</span>
     · {{ entity_type_labels.get(entity.entity_type, entity.entity_type) }}
-    · source {{ entity.source }} · v{{ entity.version }}
+    · {{ diff.summary }}
   </p>
 
-  {% if entity.status == 'pending' or entity.status == 'needs_edit' %}
-  <div class="alert alert-warn">
-    This entry is not published yet. Edit the fields below, then <strong>Save</strong> and/or
-    <strong>Save &amp; approve</strong> when the fact is correct.
-  </div>
+  {% if entity.status == 'needs_edit' %}
+  <div class="alert alert-ok">Live facts are still published. Approving replaces them; rejecting keeps the last approved snapshot live.</div>
+  {% elif entity.status == 'pending' %}
+  <div class="alert alert-warn">This entity is not published yet. Approve only facts you have checked.</div>
   {% endif %}
 
-  <form class="card" method="post" action="/entities/{{ entity.id }}">
-    <div class="form-row">
-      <div>
-        <label for="name">Name</label>
-        <input id="name" name="name" type="text" required value="{{ entity.name }}" />
+  <form class="card" method="post" action="/entities/{{ entity.id }}/review">
+    <h2>Changes</h2>
+    {% if diff.changes %}
+      {% for c in diff.changes %}
+      <div class="diff-block diff-{{ c.kind }}">
+        <h3>{{ c.label }} <span class="muted">{{ c.kind }}{% if c.extraction_method %} · {{ c.extraction_method }}{% endif %}</span></h3>
+        {% if c.kind == 'changed' %}
+        <div class="diff-grid">
+          <div>
+            <div class="diff-caption">Last approved (live)</div>
+            <pre class="diff-old">{{ c.old_display }}</pre>
+          </div>
+          <div>
+            <div class="diff-caption">Proposed</div>
+            <textarea name="claim:{{ c.attribute }}" class="diff-input">{{ c.new_display }}</textarea>
+          </div>
+        </div>
+        {% else %}
+        <div class="diff-caption">New fact (not published yet)</div>
+        <textarea name="claim:{{ c.attribute }}" class="diff-input">{{ c.new_display }}</textarea>
+        {% endif %}
+        <textarea hidden name="extract:{{ c.attribute }}">{{ c.new }}</textarea>
       </div>
-      <div>
-        <label for="entity_type">Entity type</label>
-        <select id="entity_type" name="entity_type">
-          {% for t in entity_types %}
-          <option value="{{ t }}" {% if entity.entity_type == t %}selected{% endif %}>{{ entity_type_labels[t] }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">No pending claim diffs. You can still approve the current extract or reject.</p>
+    {% endif %}
 
-    <label for="description">Description</label>
-    <textarea id="description" name="description" class="tall" style="font-family:inherit">{{ entity.description or "" }}</textarea>
-
-    <div class="form-row">
-      <div>
-        <label for="status">Status</label>
-        <select id="status" name="status">
-          {% for k, lab in status_labels.items() %}
-          <option value="{{ k }}" {% if entity.status == k %}selected{% endif %}>{{ lab }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label for="trust_level">Trust level</label>
-        <select id="trust_level" name="trust_level">
-          {% for t in ["low", "medium", "high"] %}
-          <option value="{{ t }}" {% if entity.trust_level == t %}selected{% endif %}>{{ t }}</option>
-          {% endfor %}
-        </select>
-      </div>
+    <div class="btn-row">
+      <button class="btn btn-success" type="submit" name="intent" value="save_approve">Approve</button>
+      <button class="btn btn-primary" type="submit" name="intent" value="save">Save without approve</button>
+      <button class="btn btn-danger" type="submit" name="intent" value="save_reject">Reject</button>
+      <a class="btn" href="/sites/{{ site.id }}/entities">Back to inbox</a>
     </div>
 
     <label for="notes">Reviewer notes</label>
     <textarea id="notes" name="notes" style="font-family:inherit">{{ entity.notes or "" }}</textarea>
 
-    <label for="properties_json">Properties (JSON)</label>
-    <textarea id="properties_json" name="properties_json" class="tall">{{ properties_json }}</textarea>
-
-    <label for="relationships_json">Relationships (JSON array)</label>
-    <textarea id="relationships_json" name="relationships_json" class="tall">{{ relationships_json }}</textarea>
-
-    <label for="evidence_json">Evidence (JSON array)</label>
-    <textarea id="evidence_json" name="evidence_json" class="tall">{{ evidence_json }}</textarea>
-
-    <div class="btn-row">
-      <button class="btn btn-primary" type="submit" name="intent" value="save">Save changes</button>
-      <button class="btn btn-success" type="submit" name="intent" value="save_approve">Save &amp; approve</button>
-      <button class="btn btn-danger" type="submit" name="intent" value="save_reject">Save &amp; reject</button>
-      <a class="btn" href="/sites/{{ site.id }}/entities">Back to list</a>
-    </div>
+    {% if diff.unchanged %}
+    <details class="card" style="margin-top:1rem">
+      <summary>Unchanged / already live ({{ diff.unchanged|length }})</summary>
+      <ul class="muted">
+        {% for u in diff.unchanged %}
+        <li><strong>{{ u.label }}:</strong> {{ u.display[:240] }}{% if u.display|length > 240 %}…{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
   </form>
+
+  <details class="card">
+    <summary>Advanced JSON (envelope columns)</summary>
+    <p class="muted">Prefer the claim diffs above. These fields are the entity envelope until Stage 6.</p>
+    <form method="post" action="/entities/{{ entity.id }}">
+      <input type="hidden" name="name" value="{{ entity.name }}" />
+      <input type="hidden" name="entity_type" value="{{ entity.entity_type }}" />
+      <input type="hidden" name="description" value="{{ entity.description or '' }}" />
+      <input type="hidden" name="status" value="{{ entity.status }}" />
+      <input type="hidden" name="trust_level" value="{{ entity.trust_level }}" />
+      <label for="properties_json">Properties (JSON)</label>
+      <textarea id="properties_json" name="properties_json" class="tall">{{ properties_json }}</textarea>
+      <label for="relationships_json">Relationships (JSON array)</label>
+      <textarea id="relationships_json" name="relationships_json" class="tall">{{ relationships_json }}</textarea>
+      <label for="evidence_json">Evidence (JSON array)</label>
+      <textarea id="evidence_json" name="evidence_json" class="tall">{{ evidence_json }}</textarea>
+      <button class="btn" type="submit" name="intent" value="save">Save JSON</button>
+    </form>
+  </details>
 {% endblock %}
