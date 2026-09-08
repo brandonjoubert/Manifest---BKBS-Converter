@@ -98,6 +98,9 @@ final class Publisher
         );
         $files[] = 'schema/organization.jsonld';
 
+        $this->write($root . '/schema/jsonld-snippet.html', Exports\JsonLdSnippet::organization($site, $approved));
+        $files[] = 'schema/jsonld-snippet.html';
+
         $this->write(
             $root . '/schema/services.jsonld',
             json_encode(Exports\SchemaOrg::services($site, $approved), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n"
@@ -114,7 +117,7 @@ final class Publisher
         $files[] = 'bkbs/README.txt';
 
         if ($mergeRobots) {
-            Exports\Robots::merge($root, $site['base_url']);
+            Exports\Robots::merge($root, $site);
             $files[] = 'robots.txt';
         }
 

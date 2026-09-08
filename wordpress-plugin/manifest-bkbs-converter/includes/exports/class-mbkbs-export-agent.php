@@ -6,8 +6,7 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Stage 4b: current knowledge-index stub. Honest A2A card is Stage 4c/9.
- * Do not change bytes in this slice.
+ * Stage 4c: honest knowledge index. No stub protocol, no A2A endpoint.
  */
 final class MBKBS_Export_Agent
 {
@@ -16,14 +15,16 @@ final class MBKBS_Export_Agent
      */
     public static function build(string $name, string $home): array
     {
+        $base = untrailingslashit($home);
         return [
             'name' => $name,
             'url' => $home,
-            'protocol' => 'agent-web-protocol-stub',
-            'platform' => 'wordpress',
             'knowledge' => [
-                'llms_txt' => $home . '/llms.txt',
-                'graph' => $home . '/graph.json',
+                'llms_txt' => $base . '/llms.txt',
+                'llms_full' => $base . '/llms-full.txt',
+                'graph' => $base . '/graph.json',
+                'schema_organization' => $base . '/schema/organization.jsonld',
+                'schema_services' => $base . '/schema/services.jsonld',
             ],
         ];
     }

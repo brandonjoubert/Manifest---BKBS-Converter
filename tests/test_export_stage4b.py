@@ -20,7 +20,7 @@ def test_shims_reexport_adapters():
     assert export_jsonld.build_agent_json is build_agent_json
 
 
-def test_agent_json_stub_unchanged():
+def test_agent_json_is_knowledge_index():
     site = SimpleNamespace(name="Acme", base_url="https://acme.example")
     cap = SimpleNamespace(
         id="c1",
@@ -29,9 +29,11 @@ def test_agent_json_stub_unchanged():
         description="Cameras",
     )
     data = build_agent_json(site, [cap])
-    assert data["protocol"] == "agent-web-protocol-stub"
+    assert "protocol" not in data
+    assert "endpoint" not in data
+    assert "capabilities" not in data
     assert data["knowledge"]["llms_txt"] == "https://acme.example/llms.txt"
-    assert data["capabilities"][0]["name"] == "Install CCTV"
+    assert data["knowledge"]["schema_organization"].endswith("/schema/organization.jsonld")
 
 
 def test_adapter_accepts_resolved_entity():

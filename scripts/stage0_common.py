@@ -23,7 +23,6 @@ COMPARE_FILES = (
     "graph.json",
     "schema/organization.jsonld",
     "schema/services.jsonld",
-    ".well-known/agent.json",
     "robots.txt.suggestion",
     "sitemap.xml.suggestion",
     "README.md",

@@ -135,6 +135,9 @@ def ui_create_site(
     crawl_delay_ms: int = Form(300),
     publish_root: str = Form(""),
     auto_publish: str | None = Form(None),
+    aipref_search: str | None = Form(None),
+    aipref_ai_input: str | None = Form(None),
+    aipref_train_ai: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     base_url = base_url.strip()
@@ -148,6 +151,9 @@ def ui_create_site(
         crawl_delay_ms=max(0, min(crawl_delay_ms, 10_000)),
         publish_root=publish_root.strip() or None,
         auto_publish=auto_publish is not None,
+        aipref_search=aipref_search is not None,
+        aipref_ai_input=aipref_ai_input is not None,
+        aipref_train_ai=aipref_train_ai is not None,
     )
     db.add(site)
     db.commit()
@@ -183,6 +189,21 @@ def site_detail(site_id: str, request: Request, db: Session = Depends(get_db)):
     )
     resolved_root = resolve_publish_root(site)
     local_hint = str(suggested_local_publish_root())
+    from app.exports import managed_robots_block, organization_jsonld_snippet
+    from app.services.resolver import resolve_site
+
+    public = resolve_site(db, site.id, include_pending=False)
+    jsonld_snippet = organization_jsonld_snippet(site, public)
+    robots_preview = managed_robots_block(site)
+    base = site.base_url.rstrip("/")
+    live_urls = [
+        ("llms.txt", f"{base}/llms.txt"),
+        ("llms-full.txt", f"{base}/llms-full.txt"),
+        ("graph.json", f"{base}/graph.json"),
+        ("organization.jsonld", f"{base}/schema/organization.jsonld"),
+        ("services.jsonld", f"{base}/schema/services.jsonld"),
+        ("agent.json", f"{base}/.well-known/agent.json"),
+    ]
     return templates.TemplateResponse(
         request,
         "site_detail.html",
@@ -194,6 +215,9 @@ def site_detail(site_id: str, request: Request, db: Session = Depends(get_db)):
             "status_counts": dict(status_counts),
             "resolved_publish_root": str(resolved_root) if resolved_root else None,
             "local_publish_hint": local_hint,
+            "jsonld_snippet": jsonld_snippet,
+            "robots_preview": robots_preview,
+            "live_urls": live_urls,
             "msg": request.query_params.get("msg"),
             "err": request.query_params.get("err"),
         }
@@ -210,6 +234,9 @@ def ui_site_settings(
     crawl_delay_ms: int = Form(300),
     publish_root: str = Form(""),
     auto_publish: str | None = Form(None),
+    aipref_search: str | None = Form(None),
+    aipref_ai_input: str | None = Form(None),
+    aipref_train_ai: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     from urllib.parse import quote
@@ -226,6 +253,9 @@ def ui_site_settings(
     site.crawl_delay_ms = max(0, min(crawl_delay_ms, 10_000))
     site.publish_root = publish_root.strip() or None
     site.auto_publish = auto_publish is not None
+    site.aipref_search = aipref_search is not None
+    site.aipref_ai_input = aipref_ai_input is not None
+    site.aipref_train_ai = aipref_train_ai is not None
     db.commit()
     return RedirectResponse(
         f"/sites/{site_id}?msg={quote('Site settings saved')}",

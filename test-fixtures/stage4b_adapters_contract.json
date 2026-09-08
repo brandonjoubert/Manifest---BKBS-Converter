@@ -13,7 +13,8 @@
     "services_jsonld",
     "agent_json"
   ],
-  "agent_json_must_contain": "agent-web-protocol-stub",
+  "agent_json_must_contain": "knowledge",
+  "agent_json_must_not_contain": "agent-web-protocol-stub",
   "editions": {
     "python": {
       "package": "app.exports",

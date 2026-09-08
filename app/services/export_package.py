@@ -16,6 +16,7 @@ from app.exports import (
     build_graph,
     build_organization_jsonld,
     build_services_jsonld,
+    organization_jsonld_snippet,
     render_llms_full,
     render_llms_txt,
     robots_suggestion,
@@ -104,6 +105,9 @@ def create_export_package(
     (out_dir / "llms-full.txt").write_text(render_llms_full(site, entities), encoding="utf-8")
     _write_json(out_dir / "graph.json", build_graph(site, entities))
     _write_json(out_dir / "schema" / "organization.jsonld", build_organization_jsonld(site, entities))
+    (out_dir / "schema" / "jsonld-snippet.html").write_text(
+        organization_jsonld_snippet(site, entities), encoding="utf-8"
+    )
     _write_json(out_dir / "schema" / "services.jsonld", build_services_jsonld(site, entities))
     _write_json(out_dir / ".well-known" / "agent.json", build_agent_json(site, entities))
     (out_dir / "robots.txt.suggestion").write_text(_robots_suggestion(site), encoding="utf-8")

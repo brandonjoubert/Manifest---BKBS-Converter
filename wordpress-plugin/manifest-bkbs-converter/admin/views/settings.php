@@ -37,4 +37,23 @@ $msg = isset($_GET['mbkbs_msg']) ? sanitize_text_field(wp_unslash((string) $_GET
     <p><label><input type="checkbox" name="clear_key" value="1" /> <?php esc_html_e('Clear stored API key', 'manifest-bkbs'); ?></label></p>
     <button class="button button-primary" type="submit"><?php esc_html_e('Save settings', 'manifest-bkbs'); ?></button>
   </form>
+
+  <form class="mbkbs-card" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+    <?php wp_nonce_field('mbkbs_save_machine_layers'); ?>
+    <input type="hidden" name="action" value="mbkbs_save_machine_layers" />
+    <input type="hidden" name="redirect_page" value="mbkbs-settings" />
+    <h2><?php esc_html_e('Machine layers', 'manifest-bkbs'); ?></h2>
+    <p>
+      <label>
+        <input type="checkbox" name="jsonld_wp_head" value="1" <?php checked(!empty($jsonld_inject)); ?> />
+        <?php esc_html_e('Print JSON-LD in wp_head on homepage', 'manifest-bkbs'); ?>
+      </label>
+    </p>
+    <p class="mbkbs-muted"><?php esc_html_e('Off by default. When on, the homepage prints a script-safe JSON-LD snippet.', 'manifest-bkbs'); ?></p>
+    <p class="mbkbs-muted"><?php esc_html_e('AI preferences (AIPREF) — all off by default.', 'manifest-bkbs'); ?></p>
+    <p><label><input type="checkbox" name="aipref_search" value="1" <?php checked(!empty($aipref_search)); ?> /> <?php esc_html_e('Allow search indexing (search)', 'manifest-bkbs'); ?></label></p>
+    <p><label><input type="checkbox" name="aipref_ai_input" value="1" <?php checked(!empty($aipref_ai_input)); ?> /> <?php esc_html_e('Allow use as generative AI input (ai-input)', 'manifest-bkbs'); ?></label></p>
+    <p><label><input type="checkbox" name="aipref_train_ai" value="1" <?php checked(!empty($aipref_train_ai)); ?> /> <?php esc_html_e('Allow AI training (train-ai)', 'manifest-bkbs'); ?></label></p>
+    <button class="button" type="submit"><?php esc_html_e('Save machine-layer settings', 'manifest-bkbs'); ?></button>
+  </form>
 </div>

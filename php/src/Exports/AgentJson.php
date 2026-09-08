@@ -4,8 +4,7 @@ declare(strict_types=1);
 namespace Bkbs\Exports;
 
 /**
- * Stage 4b: current knowledge-index stub. Honest A2A card is Stage 4c/9.
- * Do not change bytes in this slice.
+ * Stage 4c: honest knowledge index. No stub protocol, no A2A endpoint.
  */
 final class AgentJson
 {
@@ -16,13 +15,17 @@ final class AgentJson
      */
     public static function build(array $site, array $entities): array
     {
+        unset($entities);
+        $base = rtrim((string) $site['base_url'], '/');
         return [
             'name' => $site['name'],
             'url' => $site['base_url'],
-            'protocol' => 'agent-web-protocol-stub',
             'knowledge' => [
-                'llms_txt' => rtrim((string) $site['base_url'], '/') . '/llms.txt',
-                'graph' => rtrim((string) $site['base_url'], '/') . '/graph.json',
+                'llms_txt' => $base . '/llms.txt',
+                'llms_full' => $base . '/llms-full.txt',
+                'graph' => $base . '/graph.json',
+                'schema_organization' => $base . '/schema/organization.jsonld',
+                'schema_services' => $base . '/schema/services.jsonld',
             ],
         ];
     }

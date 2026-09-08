@@ -83,6 +83,7 @@ final class MBKBS_Publisher
             'schema/organization.jsonld' => $payload['org'],
             'schema/services.jsonld' => $payload['services'],
             '.well-known/agent.json' => $payload['agent'],
+            'schema/jsonld-snippet.html' => $payload['jsonld_snippet'],
         ];
         $written = [];
         foreach ($map as $rel => $content) {
@@ -96,11 +97,35 @@ final class MBKBS_Publisher
             }
             $written[] = $rel;
         }
+        MBKBS_Export_Robots::merge_file(ABSPATH, MBKBS_Export_Robots::site_from_settings());
+        $written[] = 'robots.txt';
         return [
             'ok' => true,
             'files' => $written,
             'entity_count' => $payload['entity_count'],
         ];
+    }
+
+    public static function maybe_print_jsonld(): void
+    {
+        if (is_admin()) {
+            return;
+        }
+        if (MBKBS_Database::get_setting('jsonld.wp_head', '0') !== '1') {
+            return;
+        }
+        if (!is_front_page()) {
+            return;
+        }
+        $payload = self::build_payload();
+        echo $payload['jsonld_snippet']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    }
+
+    public static function filter_robots_txt(string $output, $public): string
+    {
+        unset($public);
+        $block = MBKBS_Export_Robots::block(MBKBS_Export_Robots::site_from_settings());
+        return MBKBS_Export_Robots::replace_block($output, $block);
     }
 
     /**
@@ -132,9 +157,11 @@ final class MBKBS_Publisher
         $llms_txt = MBKBS_Export_Llms::render_txt($name, $home, $entities);
         $llms_full = MBKBS_Export_Llms::render_full($name, $entities);
         $graph = wp_json_encode(MBKBS_Export_Graph::build($name, $home, $entities), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
-        $org = wp_json_encode(MBKBS_Export_Schema::organization($name, $home, $entities), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+        $orgArr = MBKBS_Export_Schema::organization($name, $home, $entities);
+        $org = wp_json_encode($orgArr, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
         $services_json = wp_json_encode(MBKBS_Export_Schema::services($entities), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
         $agent = wp_json_encode(MBKBS_Export_Agent::build($name, $home), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+        $snippet = MBKBS_Export_Jsonld::snippet($orgArr);
 
         return [
             'llms_txt' => $llms_txt,
@@ -143,6 +170,7 @@ final class MBKBS_Publisher
             'org' => $org,
             'services' => $services_json,
             'agent' => $agent,
+            'jsonld_snippet' => $snippet,
             'entity_count' => count($entities),
         ];
     }

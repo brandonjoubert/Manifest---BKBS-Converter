@@ -12,7 +12,7 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
 mkdir -p "$STAGE/bkbs-php" "$DIST_DIR"
-cp -a "$ROOT/php/." "$STAGE/bkbs-php/"
+rsync -a --exclude config.php --exclude '*.sqlite*' --exclude '*.sqlite' "$ROOT/php/" "$STAGE/bkbs-php/"
 # do not ship local config/db
 rm -f "$STAGE/bkbs-php/config.php"
 rm -f "$STAGE/bkbs-php/data/"*.sqlite* 2>/dev/null || true

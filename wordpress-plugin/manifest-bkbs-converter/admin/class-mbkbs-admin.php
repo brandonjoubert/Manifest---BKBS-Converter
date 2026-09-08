@@ -20,6 +20,7 @@ final class MBKBS_Admin
         add_action('admin_menu', [$this, 'hide_internal_pages'], 99);
         add_action('admin_enqueue_scripts', [$this, 'assets']);
         add_action('admin_post_mbkbs_save_settings', [$this, 'save_settings']);
+        add_action('admin_post_mbkbs_save_machine_layers', [$this, 'save_machine_layers']);
         add_action('admin_post_mbkbs_scan', [$this, 'scan']);
         add_action('admin_post_mbkbs_save_entity', [$this, 'save_entity']);
         add_action('admin_post_mbkbs_review_entity', [$this, 'review_entity']);
@@ -109,6 +110,22 @@ final class MBKBS_Admin
             $by[$row['status']] = (int) $row['c'];
         }
         $llm = MBKBS_LLM::from_settings() !== null;
+        $payload = MBKBS_Publisher::build_payload();
+        $jsonld_snippet = (string) ($payload['jsonld_snippet'] ?? '');
+        $jsonld_inject = MBKBS_Database::get_setting('jsonld.wp_head', '0') === '1';
+        $aipref_search = MBKBS_Database::get_setting('aipref.search', '0') === '1';
+        $aipref_ai_input = MBKBS_Database::get_setting('aipref.ai_input', '0') === '1';
+        $aipref_train_ai = MBKBS_Database::get_setting('aipref.train_ai', '0') === '1';
+        $robots_preview = MBKBS_Export_Robots::block(MBKBS_Export_Robots::site_from_settings());
+        $home = untrailingslashit(home_url('/'));
+        $live_urls = [
+            ['llms.txt', $home . '/llms.txt'],
+            ['llms-full.txt', $home . '/llms-full.txt'],
+            ['graph.json', $home . '/graph.json'],
+            ['organization.jsonld', $home . '/schema/organization.jsonld'],
+            ['services.jsonld', $home . '/schema/services.jsonld'],
+            ['agent.json', $home . '/.well-known/agent.json'],
+        ];
         include MBKBS_PLUGIN_DIR . 'admin/views/dashboard.php';
     }
 
@@ -184,6 +201,10 @@ final class MBKBS_Admin
         $enabled = MBKBS_Database::get_setting('llm.enabled', '1') !== '0';
         $key_set = MBKBS_Database::get_setting('llm.api_key', '') !== '';
         $llm_ok = MBKBS_LLM::from_settings() !== null;
+        $jsonld_inject = MBKBS_Database::get_setting('jsonld.wp_head', '0') === '1';
+        $aipref_search = MBKBS_Database::get_setting('aipref.search', '0') === '1';
+        $aipref_ai_input = MBKBS_Database::get_setting('aipref.ai_input', '0') === '1';
+        $aipref_train_ai = MBKBS_Database::get_setting('aipref.train_ai', '0') === '1';
         include MBKBS_PLUGIN_DIR . 'admin/views/settings.php';
     }
 
@@ -201,6 +222,21 @@ final class MBKBS_Admin
             MBKBS_Database::set_setting('llm.api_key', sanitize_text_field(wp_unslash((string) $_POST['api_key'])));
         }
         $this->redirect('mbkbs-settings', 'Settings saved.');
+    }
+
+    public function save_machine_layers(): void
+    {
+        $this->assert_admin();
+        check_admin_referer('mbkbs_save_machine_layers');
+        MBKBS_Database::set_setting('jsonld.wp_head', isset($_POST['jsonld_wp_head']) ? '1' : '0');
+        MBKBS_Database::set_setting('aipref.search', isset($_POST['aipref_search']) ? '1' : '0');
+        MBKBS_Database::set_setting('aipref.ai_input', isset($_POST['aipref_ai_input']) ? '1' : '0');
+        MBKBS_Database::set_setting('aipref.train_ai', isset($_POST['aipref_train_ai']) ? '1' : '0');
+        $dest = sanitize_text_field(wp_unslash((string) ($_POST['redirect_page'] ?? 'mbkbs')));
+        if (!in_array($dest, ['mbkbs', 'mbkbs-settings'], true)) {
+            $dest = 'mbkbs';
+        }
+        $this->redirect($dest, 'Machine-layer settings saved.');
     }
 
     public function add_site(): void

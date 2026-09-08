@@ -61,6 +61,12 @@ jobs:
           XAI_API_KEY: ""
           LLM_API_KEY: ""
 
+      - name: Claim Ledger Stage 4c artifacts contract
+        run: python scripts/stage4c_contract_check.py
+        env:
+          XAI_API_KEY: ""
+          LLM_API_KEY: ""
+
   php-syntax:
     name: PHP syntax check
     runs-on: ubuntu-latest
@@ -92,6 +98,9 @@ jobs:
       - name: Claim Ledger Stage 4a publication rule (PHP)
         run: php php/scripts/verify_stage4a.php
 
+      - name: Claim Ledger Stage 4c artifacts (PHP)
+        run: php php/scripts/verify_stage4c.php
+
       - name: PHP Resolver + backfill lint (Stage 2)
         run: |
           php -l php/src/Resolver.php
@@ -103,6 +112,8 @@ jobs:
           php -l php/src/Exports/GraphJson.php
           php -l php/src/Exports/AgentJson.php
           php -l php/src/Exports/Robots.php
+          php -l php/src/Exports/JsonLdSnippet.php
+          php -l php/scripts/verify_stage4c.php
 
   package-php-zip:
     name: PHP zip present

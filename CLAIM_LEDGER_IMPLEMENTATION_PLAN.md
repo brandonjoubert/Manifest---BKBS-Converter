@@ -5,7 +5,7 @@
 
 **Generated:** 2026-07-28  
 **Updated:** 2026-08-18  
-**Status:** Stage 0–5 complete (writers, public-set, adapters, claim review UI). Next: Stage 4c artifacts. /autoplan B2 applied 2026-08-18.
+**Status:** Stage 0–5 + 4c complete (writers, public-set, adapters, claim review UI, public-web artifacts). Next: Stage 6 columns only (gated). /autoplan B2 applied 2026-08-18.
 
 ---
 
@@ -231,9 +231,9 @@ CREATE INDEX idx_claims_supersedes ON claims(supersedes_id);
 ### EXIT (Stage 4)
 - [x] 4a tests green (no pending-only entity in live files; needs_edit keeps last approved) — `tests/test_export_stage4.py`, `php/scripts/verify_stage4a.php`
 - [x] 4b goldens still match for current formats — `app/exports/` + PHP/WP twins; `scripts/stage4b_contract_check.py`
-- [ ] 4c snippet escaped; WP inject off by default; AIPREF off by default
-- [ ] Envelope table still exists
-- [ ] Triple edition
+- [x] 4c snippet escaped; WP inject off by default; AIPREF off by default — `tests/test_artifacts_stage4c.py`, `php/scripts/verify_stage4c.php`, `scripts/stage4c_contract_check.py`
+- [x] Envelope table still exists
+- [x] Triple edition
 
 ### ROLLBACK
 - Revert writers; publish still filters `entities.status == approved`
@@ -445,9 +445,9 @@ curl -s http://127.0.0.1:8765/health
 
 ## Next Action
 
-**Stages 0–5 complete** (writers, public-set, adapters, claim review UI).  
+**Stages 0–5 + 4c complete** (writers, public-set, adapters, claim review UI, public-web artifacts).  
 
-Next: **Stage 4c** artifacts (JSON-LD snippet, WP inject off by default, honest `agent.json`, AIPREF). Stage 6 is **columns only**. Stage 9 still gated.
+Next: **Stage 6** drop attribute columns only (keep entity envelope) after soak + restore drill. Stage 9 still gated.
 
 ---
 
@@ -722,8 +722,8 @@ Not “dropped entities table.” It is: approve a change and see `/llms.txt` + 
 - [x] **T1 (P1)** Split Stage 4 into 4a / 4b / 4c *(plan text, B2)*
 - [x] **T2 (P1)** Keep `entities` as envelope; Stage 6 = drop attribute columns only *(plan text, B2)*
 - [x] **T3 (P1)** `GET /diff` + claim-level verify + Save write rule *(specified in Stage 5)*
-- [ ] **T4 (P1)** JSON-LD snippet XSS escape; WP optional `wp_head` *(implement in 4c)*
-- [ ] **T5 (P2)** Machine-layer card; AIPREF toggles default off *(implement in 4c)*
+- [x] **T4 (P1)** JSON-LD snippet XSS escape; WP optional `wp_head` *(implement in 4c)*
+- [x] **T5 (P2)** Machine-layer card; AIPREF toggles default off *(implement in 4c)*
 - [x] **T6 (P2)** Fix plan footer verify commands
 - [ ] **T7 (P3)** Fetch counter (8.6) as a real metric
 - [ ] **T8 (P1)** Implement Stage 4a in product code — not started

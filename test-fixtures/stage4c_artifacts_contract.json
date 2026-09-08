@@ -1,0 +1,48 @@
+{
+  "stage": "4c",
+  "description": "Additive public-web artifacts: honest agent.json, script-safe JSON-LD snippet, AIPREF off by default",
+  "agent_json": {
+    "required_keys": ["name", "url", "knowledge"],
+    "forbidden_keys": ["protocol", "endpoint", "capabilities"],
+    "knowledge_required": [
+      "llms_txt",
+      "llms_full",
+      "graph",
+      "schema_organization",
+      "schema_services"
+    ]
+  },
+  "snippet": {
+    "must_start_with": "<script type=\"application/ld+json\">",
+    "must_end_with": "</script>",
+    "forbidden_raw": ["</script>"]
+  },
+  "aipref": {
+    "default_off": true,
+    "content_usage_prefix": "Content-Usage:",
+    "end_marker": "# END BKBS"
+  },
+  "editions": {
+    "python": {
+      "snippet": "app.exports.jsonld_snippet.organization_jsonld_snippet",
+      "agent": "app.exports.agent_json.build_agent_json",
+      "robots_block": "app.exports.robots.managed_robots_block",
+      "robots_merge": "app.exports.robots.merge_robots"
+    },
+    "php": {
+      "source_files": [
+        "php/src/Exports/JsonLdSnippet.php",
+        "php/src/Exports/AgentJson.php",
+        "php/src/Exports/Robots.php"
+      ]
+    },
+    "wordpress": {
+      "source_files": [
+        "wordpress-plugin/manifest-bkbs-converter/includes/exports/class-mbkbs-export-jsonld.php",
+        "wordpress-plugin/manifest-bkbs-converter/includes/exports/class-mbkbs-export-agent.php",
+        "wordpress-plugin/manifest-bkbs-converter/includes/exports/class-mbkbs-export-robots.php"
+      ],
+      "inject_default_off": "jsonld.wp_head"
+    }
+  }
+}

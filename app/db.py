@@ -47,6 +47,12 @@ def _migrate_sqlite() -> None:
             conn.execute(
                 text("ALTER TABLE sites ADD COLUMN auto_publish BOOLEAN DEFAULT 1")
             )
+        if "aipref_search" not in cols:
+            conn.execute(text("ALTER TABLE sites ADD COLUMN aipref_search BOOLEAN DEFAULT 0"))
+        if "aipref_ai_input" not in cols:
+            conn.execute(text("ALTER TABLE sites ADD COLUMN aipref_ai_input BOOLEAN DEFAULT 0"))
+        if "aipref_train_ai" not in cols:
+            conn.execute(text("ALTER TABLE sites ADD COLUMN aipref_train_ai BOOLEAN DEFAULT 0"))
         # Claim Ledger Stage 1 indexes — only if claims exists (create_all first).
         # Creating indexes on a missing table would raise OperationalError and, with
         # the outer try/except in init_db, could hide other migration work.

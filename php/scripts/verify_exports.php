@@ -50,7 +50,6 @@ $files = [
     'graph.json',
     'schema/organization.jsonld',
     'schema/services.jsonld',
-    '.well-known/agent.json',
 ];
 
 function normalize_content(string $name, string $text): string

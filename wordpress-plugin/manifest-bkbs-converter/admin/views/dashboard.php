@@ -136,4 +136,44 @@ $err = isset($_GET['mbkbs_err']) ? sanitize_text_field(wp_unslash((string) $_GET
       <?php endif; ?>
     </div>
   </div>
+
+  <div class="mbkbs-card" id="machine-layers">
+    <h2><?php esc_html_e('Machine layers', 'manifest-bkbs'); ?></h2>
+    <p class="mbkbs-muted"><?php esc_html_e('Live origin URLs. JSON-LD inject is off by default.', 'manifest-bkbs'); ?></p>
+    <ul class="mbkbs-muted">
+      <?php foreach (($live_urls ?? []) as $pair) : ?>
+        <li><a href="<?php echo esc_url($pair[1]); ?>" target="_blank" rel="noopener"><?php echo esc_html($pair[1]); ?></a> (<?php echo esc_html($pair[0]); ?>)</li>
+      <?php endforeach; ?>
+    </ul>
+    <p>
+      <label for="jsonld-snippet"><?php esc_html_e('JSON-LD snippet (script-safe)', 'manifest-bkbs'); ?></label>
+      <textarea id="jsonld-snippet" class="large-text code" rows="6" readonly><?php echo esc_textarea($jsonld_snippet ?? ''); ?></textarea>
+    </p>
+    <p>
+      <button class="button" type="button" onclick="navigator.clipboard.writeText(document.getElementById('jsonld-snippet').value)"><?php esc_html_e('Copy snippet', 'manifest-bkbs'); ?></button>
+      <?php if (!empty($jsonld_inject)) : ?>
+        <span class="mbkbs-muted"><?php esc_html_e('Homepage inject: on', 'manifest-bkbs'); ?></span>
+      <?php else : ?>
+        <span class="mbkbs-muted"><?php esc_html_e('Homepage inject: off', 'manifest-bkbs'); ?></span>
+      <?php endif; ?>
+    </p>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+      <?php wp_nonce_field('mbkbs_save_machine_layers'); ?>
+      <input type="hidden" name="action" value="mbkbs_save_machine_layers" />
+      <input type="hidden" name="redirect_page" value="mbkbs" />
+      <p>
+        <label>
+          <input type="checkbox" name="jsonld_wp_head" value="1" <?php checked(!empty($jsonld_inject)); ?> />
+          <?php esc_html_e('Print JSON-LD in wp_head on homepage', 'manifest-bkbs'); ?>
+        </label>
+      </p>
+      <p class="mbkbs-muted"><?php esc_html_e('AI preferences (AIPREF) — all off by default. Opt in before a Content-Usage line is written into the managed robots block.', 'manifest-bkbs'); ?></p>
+      <p><label><input type="checkbox" name="aipref_search" value="1" <?php checked(!empty($aipref_search)); ?> /> <?php esc_html_e('Allow search indexing (search)', 'manifest-bkbs'); ?></label></p>
+      <p><label><input type="checkbox" name="aipref_ai_input" value="1" <?php checked(!empty($aipref_ai_input)); ?> /> <?php esc_html_e('Allow use as generative AI input (ai-input)', 'manifest-bkbs'); ?></label></p>
+      <p><label><input type="checkbox" name="aipref_train_ai" value="1" <?php checked(!empty($aipref_train_ai)); ?> /> <?php esc_html_e('Allow AI training (train-ai)', 'manifest-bkbs'); ?></label></p>
+      <p><button class="button" type="submit"><?php esc_html_e('Save machine-layer settings', 'manifest-bkbs'); ?></button></p>
+    </form>
+    <p class="mbkbs-muted"><?php esc_html_e('Robots merge preview (always includes # END BKBS):', 'manifest-bkbs'); ?></p>
+    <pre class="mbkbs-muted" style="white-space:pre-wrap;font-size:12px"><?php echo esc_html($robots_preview ?? ''); ?></pre>
+  </div>
 </div>

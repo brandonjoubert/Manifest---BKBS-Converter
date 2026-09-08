@@ -703,6 +703,8 @@ When publish succeeds, the web root receives files such as:
 
 `schema/organization.jsonld` uses schema.org `@type: LocalBusiness` (a subtype of Organization). Python, PHP, and WordPress editions all emit the same type.
 
+On-page JSON-LD: copy `schema/jsonld-snippet.html` from the ZIP or the **Machine layers** card (the JSON is script-safe: `<` is `\u003c`). The WordPress edition can print that snippet in `wp_head` on the homepage — **off by default**. AIPREF / Content-Usage lines are also off until you tick the three site toggles; the managed robots block always includes `# END BKBS`.
+
 ### Setting the web root correctly
 
 | Hosting style | Typical web root value |

@@ -19,6 +19,8 @@ final class MBKBS_Plugin
         add_action('init', [MBKBS_Publisher::class, 'register_rewrites']);
         add_filter('query_vars', [MBKBS_Publisher::class, 'query_vars']);
         add_action('template_redirect', [MBKBS_Publisher::class, 'template_redirect']);
+        add_action('wp_head', [MBKBS_Publisher::class, 'maybe_print_jsonld'], 20);
+        add_filter('robots_txt', [MBKBS_Publisher::class, 'filter_robots_txt'], 10, 2);
 
         if (is_admin()) {
             require_once MBKBS_PLUGIN_DIR . 'admin/class-mbkbs-admin.php';

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claim Ledger Stage 4c** (additive public-web artifacts, all three editions)
+  - Script-safe JSON-LD HTML snippet (`<` → `\u003c`) in ZIP as `schema/jsonld-snippet.html` and Copy on the site machine-layer card
+  - WordPress: optional “Print JSON-LD in `wp_head` on homepage” — **default off**
+  - Honest `/.well-known/agent.json` knowledge index (no stub `protocol`, no A2A `endpoint`); excluded from Stage 0 byte-compare; schema-asserted
+  - AIPREF / Content-Usage: three site toggles, all **off**; preview of the robots merge block; never write without `# END BKBS`
+  - Machine-layer card: live URL checklist, snippet, inject status, AIPREF preview
+  - Tests: `tests/test_artifacts_stage4c.py`, `php/scripts/verify_stage4c.php`, `scripts/stage4c_contract_check.py`
 - **Claim Ledger Stage 5** (claim-level review UI, all three editions)
   - `GET /diff` (Python `/api/entities/{id}/diff` and `/entities/{id}/diff`; PHP `entities/{id}/diff`) — old = last approved claim, new = latest pending; never entity columns
   - Inbox defaults to pending + needs_edit with a one-line change summary and **Review changes**

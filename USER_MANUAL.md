@@ -290,8 +290,9 @@ Copy files to your web host so they are publicly reachable, for example:
 | `llms-full.txt` | `https://yoursite.com/llms-full.txt` (optional) |
 | `graph.json` | `https://yoursite.com/graph.json` |
 | `schema/organization.jsonld` | `/schema/organization.jsonld` or embed on pages |
+| `schema/jsonld-snippet.html` | Paste the `<script>` into your site `<head>` (script-safe) |
 | `schema/services.jsonld` | `/schema/services.jsonld` |
-| `.well-known/agent.json` | `/.well-known/agent.json` |
+| `.well-known/agent.json` | `/.well-known/agent.json` (knowledge index, not an A2A agent) |
 | `robots.txt.suggestion` | **Merge** into your existing robots.txt (do not overwrite blindly) |
 | `sitemap.xml.suggestion` | **Merge** into your sitemap process |
 
@@ -367,7 +368,7 @@ When you add services, change contact details, or publish new pages:
 | **graph.json** | Full BKBS knowledge graph (IDs, types, properties, relationships, evidence, versions) |
 | **schema/organization.jsonld** | schema.org LocalBusiness / Organisation structured data |
 | **schema/services.jsonld** | schema.org Service (and related) entries |
-| **.well-known/agent.json** | Stub capabilities manifest for emerging agent protocols |
+| **.well-known/agent.json** | Knowledge index (pointers to llms.txt, graph.json, JSON-LD). Not an A2A agent card. |
 | **robots.txt.suggestion** | Guidance for crawler permissioning |
 | **sitemap.xml.suggestion** | Suggested URLs for discovery |
 | **README.md** | Deploy notes for your web team |

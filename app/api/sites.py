@@ -38,6 +38,9 @@ def site_to_out(db: Session, site: Site) -> SiteOut:
         rescan_cron=site.rescan_cron,
         publish_root=getattr(site, "publish_root", None),
         auto_publish=True if getattr(site, "auto_publish", None) is None else bool(site.auto_publish),
+        aipref_search=bool(getattr(site, "aipref_search", False)),
+        aipref_ai_input=bool(getattr(site, "aipref_ai_input", False)),
+        aipref_train_ai=bool(getattr(site, "aipref_train_ai", False)),
         created_at=site.created_at,
         updated_at=site.updated_at,
         pending_count=by_status.get("pending", 0) + by_status.get("needs_edit", 0),
@@ -62,6 +65,9 @@ def create_site(body: SiteCreate, db: Session = Depends(get_db)):
         crawl_delay_ms=body.crawl_delay_ms,
         publish_root=(body.publish_root or "").strip() or None,
         auto_publish=body.auto_publish,
+        aipref_search=body.aipref_search,
+        aipref_ai_input=body.aipref_ai_input,
+        aipref_train_ai=body.aipref_train_ai,
     )
     db.add(site)
     db.commit()

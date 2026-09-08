@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS sites (
   crawl_delay_ms INTEGER DEFAULT 300,
   publish_root TEXT,
   auto_publish INTEGER DEFAULT 1,
+  aipref_search INTEGER DEFAULT 0,
+  aipref_ai_input INTEGER DEFAULT 0,
+  aipref_train_ai INTEGER DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -101,6 +104,18 @@ CREATE INDEX IF NOT EXISTS idx_claims_entity_attr ON claims(entity_id, attribute
 CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status);
 CREATE INDEX IF NOT EXISTS idx_claims_supersedes ON claims(supersedes_id);
 SQL);
+        $this->ensureColumn('sites', 'aipref_search', 'aipref_search INTEGER DEFAULT 0');
+        $this->ensureColumn('sites', 'aipref_ai_input', 'aipref_ai_input INTEGER DEFAULT 0');
+        $this->ensureColumn('sites', 'aipref_train_ai', 'aipref_train_ai INTEGER DEFAULT 0');
+    }
+
+    private function ensureColumn(string $table, string $column, string $ddl): void
+    {
+        $cols = $this->pdo->query('PRAGMA table_info(' . $table . ')')->fetchAll();
+        $names = array_map(static fn($r) => (string) $r['name'], $cols);
+        if (!in_array($column, $names, true)) {
+            $this->pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $ddl);
+        }
     }
 
     public function getSetting(string $key, ?string $default = null): ?string

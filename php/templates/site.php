@@ -56,8 +56,28 @@
     </ul>
     <?php endif; ?>
     <label><input type="checkbox" name="auto_publish" value="1" <?= !empty($site['auto_publish']) ? 'checked' : '' ?> /> Prefer auto-publish</label>
+    <p class="muted" style="margin:0.75rem 0 0.35rem"><strong>AI preferences (AIPREF)</strong> — all off by default. Opt in before a Content-Usage line is written into the managed robots block.</p>
+    <label><input type="checkbox" name="aipref_search" value="1" <?= !empty($site['aipref_search']) ? 'checked' : '' ?> /> Allow search indexing (<code>search</code>)</label>
+    <label><input type="checkbox" name="aipref_ai_input" value="1" <?= !empty($site['aipref_ai_input']) ? 'checked' : '' ?> /> Allow use as generative AI input (<code>ai-input</code>)</label>
+    <label><input type="checkbox" name="aipref_train_ai" value="1" <?= !empty($site['aipref_train_ai']) ? 'checked' : '' ?> /> Allow AI training (<code>train-ai</code>)</label>
     <button class="btn btn-primary" type="submit">Save</button>
   </form>
+</div>
+
+<div class="card" id="machine-layers">
+  <h2>Machine layers</h2>
+  <p class="muted">Live origin URLs after publish. This edition cannot inject JSON-LD into your HTML — copy the snippet into your theme <code>&lt;head&gt;</code>.</p>
+  <ul class="muted" style="font-size:.9rem">
+    <?php foreach (($live_urls ?? []) as $pair): ?>
+      <li><a href="<?= h($pair[1]) ?>" target="_blank" rel="noopener"><?= h($pair[1]) ?></a> <span>(<?= h($pair[0]) ?>)</span></li>
+    <?php endforeach; ?>
+  </ul>
+  <label for="jsonld-snippet">JSON-LD snippet (script-safe)</label>
+  <textarea id="jsonld-snippet" rows="6" readonly><?= h($jsonld_snippet ?? '') ?></textarea>
+  <p><button class="btn btn-sm" type="button" onclick="navigator.clipboard.writeText(document.getElementById('jsonld-snippet').value)">Copy snippet</button></p>
+  <p class="muted">JSON-LD inject: <strong>not available here</strong> (WordPress edition has a homepage checkbox, default off).</p>
+  <label>Robots merge preview (always includes <code># END BKBS</code>)</label>
+  <pre style="white-space:pre-wrap;font-size:.85rem"><?= h($robots_preview ?? '') ?></pre>
 </div>
 
 <div class="card" id="manual">

@@ -17,6 +17,9 @@ class SiteCreate(BaseModel):
     crawl_delay_ms: int = Field(default=300, ge=0, le=10_000)
     publish_root: str | None = None
     auto_publish: bool = True
+    aipref_search: bool = False
+    aipref_ai_input: bool = False
+    aipref_train_ai: bool = False
 
     @field_validator("base_url")
     @classmethod
@@ -35,6 +38,9 @@ class SiteUpdate(BaseModel):
     rescan_cron: str | None = None
     publish_root: str | None = None
     auto_publish: bool | None = None
+    aipref_search: bool | None = None
+    aipref_ai_input: bool | None = None
+    aipref_train_ai: bool | None = None
 
 
 class SiteOut(BaseModel):
@@ -46,6 +52,9 @@ class SiteOut(BaseModel):
     rescan_cron: str | None
     publish_root: str | None = None
     auto_publish: bool = True
+    aipref_search: bool = False
+    aipref_ai_input: bool = False
+    aipref_train_ai: bool = False
     created_at: datetime
     updated_at: datetime
     pending_count: int = 0

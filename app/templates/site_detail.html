@@ -89,8 +89,39 @@
         <input type="checkbox" name="auto_publish" value="1" {% if site.auto_publish %}checked{% endif %} />
         Auto-publish to web root when exporting approved package
       </label>
+      <p class="muted" style="margin:0.75rem 0 0.35rem"><strong>AI preferences (AIPREF)</strong> — all off by default. Opt in before we write a Content-Usage line into the managed robots block.</p>
+      <label class="checkbox-row">
+        <input type="checkbox" name="aipref_search" value="1" {% if site.aipref_search %}checked{% endif %} />
+        Allow search indexing (<code>search</code>)
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" name="aipref_ai_input" value="1" {% if site.aipref_ai_input %}checked{% endif %} />
+        Allow use as generative AI input (<code>ai-input</code>)
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" name="aipref_train_ai" value="1" {% if site.aipref_train_ai %}checked{% endif %} />
+        Allow AI training (<code>train-ai</code>)
+      </label>
       <button class="btn btn-primary" type="submit">Save site settings</button>
     </form>
+  </div>
+
+  <div class="card" id="machine-layers">
+    <h2 style="margin-top:0">Machine layers</h2>
+    <p class="muted">Live origin URLs after publish. This edition cannot inject JSON-LD into your HTML — copy the snippet into your theme <code>&lt;head&gt;</code>.</p>
+    <ul class="muted" style="font-size:0.9rem">
+      {% for label, href in live_urls %}
+      <li><a href="{{ href }}" target="_blank" rel="noopener">{{ href }}</a> <span class="mono">({{ label }})</span></li>
+      {% endfor %}
+    </ul>
+    <label for="jsonld-snippet">JSON-LD snippet (script-safe)</label>
+    <textarea id="jsonld-snippet" class="mono" rows="6" readonly>{{ jsonld_snippet }}</textarea>
+    <p class="btn-row" style="margin-top:0.5rem">
+      <button class="btn btn-sm" type="button" onclick="navigator.clipboard.writeText(document.getElementById('jsonld-snippet').value)">Copy snippet</button>
+    </p>
+    <p class="muted" style="margin-bottom:0.35rem">JSON-LD inject: <strong>not available here</strong> (WordPress edition has a homepage checkbox, default off).</p>
+    <label>Robots merge preview (always includes <code># END BKBS</code>)</label>
+    <pre class="mono" style="white-space:pre-wrap;font-size:0.8rem">{{ robots_preview }}</pre>
   </div>
 
   <div id="delete" class="card" style="border-color: rgba(243, 18, 96, 0.35); margin-top: 0.5rem;">

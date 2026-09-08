@@ -54,6 +54,10 @@ class Site(Base):
     publish_root: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     # When true, publish live files after export / publish actions
     auto_publish: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Stage 4c AIPREF / content-signals — all default off (do not emit Content-Usage)
+    aipref_search: Mapped[bool] = mapped_column(Boolean, default=False)
+    aipref_ai_input: Mapped[bool] = mapped_column(Boolean, default=False)
+    aipref_train_ai: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow

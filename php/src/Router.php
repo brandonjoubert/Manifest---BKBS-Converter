@@ -117,6 +117,8 @@ match (true) {
         foreach ($counts->fetchAll() as $r) {
             $by[$r['status']] = (int) $r['c'];
         }
+        $public = Resolver::resolveSite($db->pdo(), $id, false);
+        $base = rtrim((string) $site['base_url'], '/');
         render('site', [
             'site' => $site,
             'jobs' => $jobs->fetchAll(),
@@ -124,6 +126,16 @@ match (true) {
             'has_llm' => LlmClient::fromSettings($db) !== null,
             'publish_candidates' => bkbs_detect_publish_paths(),
             'best_publish_path' => bkbs_best_publish_path(),
+            'jsonld_snippet' => Exports\JsonLdSnippet::organization($site, $public),
+            'robots_preview' => Exports\Robots::block($site),
+            'live_urls' => [
+                ['llms.txt', $base . '/llms.txt'],
+                ['llms-full.txt', $base . '/llms-full.txt'],
+                ['graph.json', $base . '/graph.json'],
+                ['organization.jsonld', $base . '/schema/organization.jsonld'],
+                ['services.jsonld', $base . '/schema/services.jsonld'],
+                ['agent.json', $base . '/.well-known/agent.json'],
+            ],
         ]);
     }
 
@@ -135,7 +147,7 @@ match (true) {
             $base = 'https://' . $base;
         }
         $st = bkbs_db()->pdo()->prepare(
-            'UPDATE sites SET name=?, base_url=?, max_pages=?, crawl_delay_ms=?, publish_root=?, auto_publish=? WHERE id=?'
+            'UPDATE sites SET name=?, base_url=?, max_pages=?, crawl_delay_ms=?, publish_root=?, auto_publish=?, aipref_search=?, aipref_ai_input=?, aipref_train_ai=? WHERE id=?'
         );
         $st->execute([
             trim($_POST['name'] ?? $site['name']),
@@ -144,6 +156,9 @@ match (true) {
             max(0, (int) ($_POST['crawl_delay_ms'] ?? 300)),
             trim($_POST['publish_root'] ?? '') ?: null,
             isset($_POST['auto_publish']) ? 1 : 0,
+            isset($_POST['aipref_search']) ? 1 : 0,
+            isset($_POST['aipref_ai_input']) ? 1 : 0,
+            isset($_POST['aipref_train_ai']) ? 1 : 0,
             $id,
         ]);
         flash_set('ok', 'Settings saved');

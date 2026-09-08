@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Claim Ledger Stage 4b contract: adapters exist in all three editions; agent.json stub unchanged.
+"""Claim Ledger Stage 4b contract: adapters exist in all three editions; 4c honest agent.json.
 
 Exit 0 on PASS, 1 on FAIL. WordPress is checked statically (no WP bootstrap).
 """
@@ -53,6 +53,9 @@ def check_python(contract: dict) -> None:
     agent_src = (ROOT / "app/exports/agent_json.py").read_text(encoding="utf-8")
     if stub not in agent_src:
         fail(f"python: agent.json adapter lost {stub!r}")
+    banned = contract.get("agent_json_must_not_contain")
+    if banned and banned in agent_src:
+        fail(f"python: agent.json adapter still contains {banned!r}")
     for rel in py["production_callers"]:
         src = (ROOT / rel).read_text(encoding="utf-8")
         if "from app.exports import" not in src and "from app.exports " not in src:
@@ -70,6 +73,9 @@ def check_php(contract: dict) -> None:
     agent = (ROOT / "php/src/Exports/AgentJson.php").read_text(encoding="utf-8")
     if stub not in agent:
         fail(f"php: AgentJson lost {stub!r}")
+    banned = contract.get("agent_json_must_not_contain")
+    if banned and banned in agent:
+        fail(f"php: AgentJson still contains {banned!r}")
     pub = (ROOT / php["production_caller"]).read_text(encoding="utf-8")
     for cls in ("LlmsTxt", "GraphJson", "SchemaOrg", "AgentJson", "Robots"):
         if f"Exports\\{cls}" not in pub:
@@ -100,6 +106,9 @@ def check_wordpress(contract: dict) -> None:
     )
     if stub not in agent:
         fail(f"wordpress: agent adapter lost {stub!r}")
+    banned = contract.get("agent_json_must_not_contain")
+    if banned and banned in agent:
+        fail(f"wordpress: agent adapter still contains {banned!r}")
     pub = (ROOT / wp["production_caller"]).read_text(encoding="utf-8")
     for cls in wp["classes"].values():
         if cls not in pub:
