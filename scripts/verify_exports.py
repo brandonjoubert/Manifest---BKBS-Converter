@@ -84,6 +84,11 @@ def verify_python() -> bool:
                 )
             )
         db.commit()
+        from app.services.stage6 import backfill_missing_claims_from_columns, null_attribute_columns
+
+        for ent in db.query(Entity).all():
+            backfill_missing_claims_from_columns(db, ent)
+        null_attribute_columns(db)
 
         # Redirect exports into temp by patching settings
         import app.config as cfg_mod

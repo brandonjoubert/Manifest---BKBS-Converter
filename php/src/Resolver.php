@@ -54,9 +54,9 @@ final class Resolver
     public static function resolveSite(\PDO $pdo, string $siteId, bool $includePending = false): array
     {
         if ($includePending) {
-            $sql = "SELECT * FROM entities WHERE site_id = ? AND status IN ('approved','pending','needs_edit','stale') ORDER BY entity_type, name";
+            $sql = "SELECT * FROM entities WHERE site_id = ? AND status IN ('approved','pending','needs_edit','stale') ORDER BY entity_type, id";
         } else {
-            $sql = "SELECT * FROM entities WHERE site_id = ? AND status IN ('approved','needs_edit','stale') ORDER BY entity_type, name";
+            $sql = "SELECT * FROM entities WHERE site_id = ? AND status IN ('approved','needs_edit','stale') ORDER BY entity_type, id";
         }
         $st = $pdo->prepare($sql);
         $st->execute([$siteId]);
@@ -69,10 +69,15 @@ final class Resolver
         }
         $ids = array_map(static fn($e) => (string) $e['id'], $ents);
         $byId = self::latestApprovedClaimsForIds($pdo, $ids);
+        $pendingBy = $includePending ? self::latestPendingClaimsForIds($pdo, $ids) : [];
         $out = [];
         foreach ($ents as $ent) {
             $eid = (string) $ent['id'];
-            $out[] = self::buildResolved($ent, $byId[$eid] ?? []);
+            $claims = $byId[$eid] ?? [];
+            if ($includePending) {
+                $claims = array_merge($claims, $pendingBy[$eid] ?? []);
+            }
+            $out[] = self::buildResolved($ent, $claims);
         }
         return $out;
     }
@@ -131,19 +136,42 @@ final class Resolver
     }
 
     /**
+     * @param list<string> $entityIds
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    private static function latestPendingClaimsForIds(\PDO $pdo, array $entityIds): array
+    {
+        if ($entityIds === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($entityIds), '?'));
+        $st = $pdo->prepare("SELECT * FROM claims WHERE entity_id IN ($placeholders) AND status = ?");
+        $st->execute([...$entityIds, 'pending']);
+        $out = [];
+        while ($row = $st->fetch(\PDO::FETCH_ASSOC)) {
+            $eid = (string) $row['entity_id'];
+            $attr = (string) $row['attribute'];
+            $prev = $out[$eid][$attr] ?? null;
+            if ($prev === null || (int) $row['id'] > (int) $prev['id']) {
+                $out[$eid][$attr] = $row;
+            }
+        }
+        return $out;
+    }
+
+    /**
      * @param array<string, mixed> $ent
      * @param array<string, array<string, mixed>> $claims
      * @return array<string, mixed>
      */
     private static function buildResolved(array $ent, array $claims): array
     {
-        $properties = self::decodeJsonAssoc($ent['properties'] ?? '{}');
-        $relationships = self::decodeJsonList($ent['relationships'] ?? '[]');
-        $evidence = self::decodeJsonList($ent['evidence'] ?? '[]');
-        $name = (string) ($ent['name'] ?? '');
-        $description = isset($ent['description']) && $ent['description'] !== ''
-            ? (string) $ent['description']
-            : null;
+        // Stage 6: attributes from claims only. Envelope trust/source/status stay on the row.
+        $properties = [];
+        $relationships = [];
+        $evidence = [];
+        $name = '';
+        $description = null;
         $trustLevel = (string) ($ent['trust_level'] ?? 'medium');
         $source = (string) ($ent['source'] ?? 'scan');
         $status = (string) ($ent['status'] ?? 'approved');
@@ -354,10 +382,9 @@ final class Resolver
             if ($approved) {
                 return (string) $approved['value'];
             }
-        }
-        foreach (self::entityAttributePairs($entity) as [$attr, $value]) {
-            if ($attr === $attribute) {
-                return $value;
+            $pending = self::latestClaim($pdo, $eid, $attribute, 'pending');
+            if ($pending) {
+                return (string) $pending['value'];
             }
         }
         return null;
@@ -395,13 +422,18 @@ final class Resolver
     /**
      * @param array<string, mixed> $entity
      */
-    public static function seedPendingClaimsForNewEntity(\PDO $pdo, array $entity): int
+    /**
+     * @param array<string, mixed> $entity
+     * @param array<string, mixed>|null $surface extract item
+     */
+    public static function seedPendingClaimsForNewEntity(\PDO $pdo, array $entity, ?array $surface = null): int
     {
         $n = 0;
         $eid = (string) $entity['id'];
         $etype = (string) ($entity['entity_type'] ?? 'unknown');
-        $method = substr((string) ($entity['source'] ?? 'scan'), 0, 32);
-        foreach (self::scanAttributePairs($entity) as [$attr, $value]) {
+        $src = $surface ?? $entity;
+        $method = substr((string) ($src['source'] ?? $entity['source'] ?? 'scan'), 0, 32);
+        foreach (self::scanAttributePairs($src) as [$attr, $value]) {
             $n += self::insertPendingClaim($pdo, $eid, $etype, $attr, $value, $method);
         }
         return $n;
@@ -823,10 +855,6 @@ final class Resolver
             $entity['status'] = 'needs_edit';
             $pdo->prepare('UPDATE entities SET status = ?, last_updated = ? WHERE id = ?')
                 ->execute(['needs_edit', gmdate('c'), $eid]);
-        }
-        if (isset($submitted['name']) && $submitted['name'] !== '') {
-            $pdo->prepare('UPDATE entities SET name = ? WHERE id = ?')->execute([$submitted['name'], $eid]);
-            $entity['name'] = $submitted['name'];
         }
         return $stats;
     }

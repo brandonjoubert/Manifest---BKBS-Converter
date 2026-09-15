@@ -62,7 +62,7 @@ final class MBKBS_Resolver
         if ($site_id) {
             $ents = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT * FROM {$table} WHERE site_id = %s AND {$status_sql} ORDER BY entity_type, name",
+                    "SELECT * FROM {$table} WHERE site_id = %s AND {$status_sql} ORDER BY entity_type, id",
                     $site_id
                 ),
                 ARRAY_A
@@ -70,7 +70,7 @@ final class MBKBS_Resolver
         } else {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $ents = $wpdb->get_results(
-                "SELECT * FROM {$table} WHERE {$status_sql} ORDER BY entity_type, name",
+                "SELECT * FROM {$table} WHERE {$status_sql} ORDER BY entity_type, id",
                 ARRAY_A
             ) ?: [];
         }
@@ -82,9 +82,15 @@ final class MBKBS_Resolver
         }
         $ids = array_map(static fn($e) => (string) $e['id'], $ents);
         $by_id = self::latest_approved_claims_for_ids($ids);
+        $pending_by = $include_pending ? self::latest_claims_for_ids($ids, 'pending') : [];
         $out = [];
         foreach ($ents as $ent) {
-            $out[] = self::build_resolved($ent, $by_id[(string) $ent['id']] ?? []);
+            $eid = (string) $ent['id'];
+            $claims = $by_id[$eid] ?? [];
+            if ($include_pending) {
+                $claims = array_merge($claims, $pending_by[$eid] ?? []);
+            }
+            $out[] = self::build_resolved($ent, $claims);
         }
         return $out;
     }
@@ -95,13 +101,22 @@ final class MBKBS_Resolver
      */
     private static function latest_approved_claims_for_ids(array $entity_ids): array
     {
+        return self::latest_claims_for_ids($entity_ids, 'approved');
+    }
+
+    /**
+     * @param list<string> $entity_ids
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    private static function latest_claims_for_ids(array $entity_ids, string $status): array
+    {
         global $wpdb;
         if ($entity_ids === []) {
             return [];
         }
         $claims = MBKBS_Database::claims_table();
         $placeholders = implode(',', array_fill(0, count($entity_ids), '%s'));
-        $params = array_merge($entity_ids, ['approved']);
+        $params = array_merge($entity_ids, [$status]);
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $rows = $wpdb->get_results(
             $wpdb->prepare(
@@ -129,13 +144,11 @@ final class MBKBS_Resolver
      */
     private static function build_resolved(array $ent, array $claims): array
     {
-        $properties = self::decode_json_assoc($ent['properties'] ?? '{}');
-        $relationships = self::decode_json_list($ent['relationships'] ?? '[]');
-        $evidence = self::decode_json_list($ent['evidence'] ?? '[]');
-        $name = (string) ($ent['name'] ?? '');
-        $description = isset($ent['description']) && $ent['description'] !== ''
-            ? (string) $ent['description']
-            : null;
+        $properties = [];
+        $relationships = [];
+        $evidence = [];
+        $name = '';
+        $description = null;
         $trustLevel = (string) ($ent['trust_level'] ?? 'medium');
         $source = (string) ($ent['source'] ?? 'scan');
         $status = (string) ($ent['status'] ?? 'approved');

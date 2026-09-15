@@ -8,7 +8,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models import Entity, EntityVersion, utcnow
+from app.models import Entity, utcnow
 from app.schemas import ExtractedEntity
 from app.services.claim_writer import (
     propose_claims_from_extract,
@@ -118,11 +118,11 @@ def apply_extracted(
                 site_id=site_id,
                 external_key=key,
                 entity_type=item.entity_type,
-                name=item.name,
-                description=item.description,
-                properties=item.properties or {},
-                relationships=item.relationships or [],
-                evidence=item.evidence or [],
+                name="",
+                description=None,
+                properties={},
+                relationships=[],
+                evidence=[],
                 version=1,
                 trust_level=item.trust_level or "medium",
                 source=item.source or "scan",
@@ -132,16 +132,8 @@ def apply_extracted(
             )
             db.add(ent)
             db.flush()
-            n_claims = seed_pending_claims_for_new_entity(db, ent)
+            n_claims = seed_pending_claims_for_new_entity(db, ent, surface=item)
             stats["claims_created"] += n_claims
-            db.add(
-                EntityVersion(
-                    entity_id=ent.id,
-                    version=1,
-                    snapshot_json=snapshot_entity(ent),
-                    change_source=item.source or "scan",
-                )
-            )
             stats["created"] += 1
             continue
 
@@ -165,14 +157,6 @@ def apply_extracted(
                 existing.status = "pending"
             existing.version = (existing.version or 1) + 1
             existing.source = "rescan_merge" if is_rescan else (item.source or existing.source)
-            db.add(
-                EntityVersion(
-                    entity_id=existing.id,
-                    version=existing.version,
-                    snapshot_json=snapshot_entity(existing),
-                    change_source="rescan_merge" if is_rescan else (item.source or "scan"),
-                )
-            )
             stats["updated"] += 1
         elif touched:
             stats["updated"] += 1
@@ -194,14 +178,6 @@ def apply_extracted(
                 ent.status = "stale"
                 ent.last_updated = utcnow()
                 ent.version = (ent.version or 1) + 1
-                db.add(
-                    EntityVersion(
-                        entity_id=ent.id,
-                        version=ent.version,
-                        snapshot_json=snapshot_entity(ent),
-                        change_source="rescan_stale",
-                    )
-                )
                 stats["marked_stale"] += 1
 
     db.commit()

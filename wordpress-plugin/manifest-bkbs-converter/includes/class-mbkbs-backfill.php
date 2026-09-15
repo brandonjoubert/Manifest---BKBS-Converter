@@ -301,11 +301,9 @@ final class MBKBS_Backfill
             if ($approved) {
                 $baseline = (string) $approved['value'];
             } else {
-                foreach (self::entity_attribute_pairs($entity) as [$a, $v]) {
-                    if ($a === $attr) {
-                        $baseline = $v;
-                        break;
-                    }
+                $pending = self::latest_claim($eid, $attr, 'pending');
+                if ($pending) {
+                    $baseline = (string) $pending['value'];
                 }
             }
             if ($baseline !== null && $baseline === $incoming) {
@@ -324,13 +322,18 @@ final class MBKBS_Backfill
     /**
      * @param array<string, mixed> $entity
      */
-    public static function seed_pending_claims_for_new_entity(array $entity): int
+    /**
+     * @param array<string, mixed> $entity
+     * @param array<string, mixed>|null $surface
+     */
+    public static function seed_pending_claims_for_new_entity(array $entity, ?array $surface = null): int
     {
         $n = 0;
         $eid = (string) $entity['id'];
         $etype = (string) ($entity['entity_type'] ?? 'unknown');
-        $method = substr((string) ($entity['source'] ?? 'scan'), 0, 32);
-        foreach (self::scan_attribute_pairs($entity) as [$attr, $value]) {
+        $src = $surface ?? $entity;
+        $method = substr((string) ($src['source'] ?? $entity['source'] ?? 'scan'), 0, 32);
+        foreach (self::scan_attribute_pairs($src) as [$attr, $value]) {
             $n += self::insert_pending_claim($eid, $etype, $attr, $value, $method);
         }
         return $n;

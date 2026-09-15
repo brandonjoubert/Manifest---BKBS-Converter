@@ -172,7 +172,15 @@ match (true) {
             flash_set('err', 'Type the exact site name to confirm delete');
             redirect(url('sites/' . $id));
         }
-        $st = bkbs_db()->pdo()->prepare('DELETE FROM sites WHERE id = ?');
+        $pdo = bkbs_db()->pdo();
+        $ids = $pdo->prepare('SELECT id FROM entities WHERE site_id = ?');
+        $ids->execute([$id]);
+        $eids = array_map(static fn($r) => (string) $r['id'], $ids->fetchAll() ?: []);
+        if ($eids) {
+            $ph = implode(',', array_fill(0, count($eids), '?'));
+            $pdo->prepare("DELETE FROM claims WHERE entity_id IN ($ph)")->execute($eids);
+        }
+        $st = $pdo->prepare('DELETE FROM sites WHERE id = ?');
         $st->execute([$id]);
         flash_set('ok', 'Site deleted');
         redirect(url('home'));
@@ -287,7 +295,7 @@ match (true) {
                 'INSERT INTO entities(id,site_id,external_key,entity_type,name,description,properties,relationships,evidence,version,trust_level,source,status,last_updated,created_at)
                  VALUES(?,?,?,?,?,?,?,?,?,1,?,?,?,?,?)'
             )->execute([
-                $id, $siteId, $key, $type, $name, $desc, $props, $rels, $evid, $trust, $source, 'pending', $now, $now,
+                $id, $siteId, $key, $type, '', null, '{}', '[]', '[]', $trust, $source, 'pending', $now, $now,
             ]);
             $row = [
                 'id' => $id,
@@ -301,7 +309,7 @@ match (true) {
                 'source' => $source,
                 'status' => 'pending',
             ];
-            Resolver::seedPendingClaimsForNewEntity($db, $row);
+            Resolver::seedPendingClaimsForNewEntity($db, $row, $item);
         }
         return true;
     }
@@ -321,7 +329,7 @@ match (true) {
             $sql .= ' AND status = ?';
             $params[] = $status;
         }
-        $sql .= ' ORDER BY status, entity_type, name LIMIT 500';
+        $sql .= ' ORDER BY status, entity_type, id LIMIT 500';
         $pdo = bkbs_db()->pdo();
         $st = $pdo->prepare($sql);
         $st->execute($params);

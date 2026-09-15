@@ -1,6 +1,7 @@
 from app.db import SessionLocal, init_db
 from app.models import Entity, Site
 from app.services.publish_live import publish_site_live
+from app.services.stage6 import null_attribute_columns
 
 
 def test_publish_writes_live_files(tmp_path):
@@ -43,6 +44,7 @@ def test_publish_writes_live_files(tmp_path):
             )
         )
         db.commit()
+        null_attribute_columns(db)
 
         result = publish_site_live(db, site)
         assert result.ok, result.error

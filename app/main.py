@@ -734,14 +734,11 @@ def ui_manual_create(
         approved_by="ui" if status == "approved" else None,
         surface=ent,
     )
-    db.add(
-        EntityVersion(
-            entity_id=ent.id,
-            version=1,
-            snapshot_json=snapshot_entity(ent),
-            change_source="ui_manual",
-        )
-    )
+    ent.name = ""
+    ent.description = None
+    ent.properties = {}
+    ent.relationships = []
+    ent.evidence = []
     db.commit()
     return RedirectResponse(f"/entities/{ent.id}?msg=Created", status_code=303)
 

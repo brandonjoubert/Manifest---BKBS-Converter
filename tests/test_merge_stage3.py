@@ -34,7 +34,7 @@ def test_new_entity_creates_pending_claims(tmp_path):
 
     ent = db.query(Entity).one()
     assert ent.status == "pending"
-    assert ent.name == "Install CCTV"
+    assert (ent.name or "") == ""
     claims = list(db.scalars(select(Claim).where(Claim.entity_id == ent.id)).all())
     assert all(c.status == "pending" for c in claims)
     assert any(c.attribute == "name" and c.value == "Install CCTV" for c in claims)
@@ -90,7 +90,7 @@ def test_rescan_change_inserts_pending_and_needs_edit(tmp_path):
     db.refresh(ent)
     assert stats["claims_created"] >= 1
     assert ent.status == "needs_edit"
-    # Entity attribute columns frozen
+    # Entity attribute columns unused (Stage 6 envelope)
     assert ent.description == old_desc
     pending = list(
         db.scalars(
@@ -130,7 +130,7 @@ def test_rescan_does_not_overwrite_entity_properties(tmp_path):
     )
     apply_extracted(db, site_id, [item2], "job2", is_rescan=True)
     db.refresh(ent)
-    assert ent.properties == {"a": 1}
+    assert (ent.properties or {}) == {}
     assert db.query(Claim).filter(Claim.status == "pending").count() >= 1
 
 

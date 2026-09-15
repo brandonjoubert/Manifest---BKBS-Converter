@@ -107,6 +107,11 @@ SQL);
         $this->ensureColumn('sites', 'aipref_search', 'aipref_search INTEGER DEFAULT 0');
         $this->ensureColumn('sites', 'aipref_ai_input', 'aipref_ai_input INTEGER DEFAULT 0');
         $this->ensureColumn('sites', 'aipref_train_ai', 'aipref_train_ai INTEGER DEFAULT 0');
+        // Stage 6: clear attribute columns when claims exist for the entity.
+        $this->pdo->exec(
+            "UPDATE entities SET name = '', description = NULL, properties = '{}', relationships = '[]', evidence = '[]'
+             WHERE id IN (SELECT DISTINCT entity_id FROM claims)"
+        );
     }
 
     private function ensureColumn(string $table, string $column, string $ddl): void

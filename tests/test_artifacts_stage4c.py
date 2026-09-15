@@ -119,6 +119,9 @@ def test_zip_includes_jsonld_snippet(tmp_path, monkeypatch):
         )
     )
     db.commit()
+    from app.services.stage6 import null_attribute_columns
+
+    null_attribute_columns(db)
     export = create_export_package(db, site, include_pending=False)
     from zipfile import ZipFile
 

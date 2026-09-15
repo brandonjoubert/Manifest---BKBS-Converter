@@ -374,11 +374,11 @@ final class MBKBS_Admin
                     'site_id' => $site_id,
                     'external_key' => $key,
                     'entity_type' => $type,
-                    'name' => $name,
-                    'description' => $desc,
-                    'properties' => $props,
-                    'relationships' => $rels,
-                    'evidence' => $evid,
+                    'name' => '',
+                    'description' => null,
+                    'properties' => '{}',
+                    'relationships' => '[]',
+                    'evidence' => '[]',
                     'version' => 1,
                     'trust_level' => $trust,
                     'source' => $source,
@@ -403,7 +403,7 @@ final class MBKBS_Admin
                 'source' => $source,
                 'status' => 'pending',
             ];
-            MBKBS_Backfill::seed_pending_claims_for_new_entity($row);
+            MBKBS_Backfill::seed_pending_claims_for_new_entity($row, $item);
         }
         return true;
     }

@@ -152,14 +152,14 @@ def test_resolve_unknown_entity_returns_none(tmp_path):
     assert resolve_entity("does-not-exist", db=db) is None
 
 
-def test_resolve_entity_fallback_without_claims(tmp_path):
+def test_resolve_entity_claims_only_without_claims(tmp_path):
     db = _session(tmp_path)
     ent = _seed(db)
-    # No backfill — still returns envelope from entity columns
     resolved = resolve_entity(ent.id, db=db)
     assert resolved is not None
-    assert resolved.name == ent.name
-    assert resolved.properties == ent.properties
+    assert resolved.name == ""
+    assert resolved.properties == {}
+    assert resolved.status == ent.status
 
 
 def test_backfill_update_supersedes(tmp_path):

@@ -5,7 +5,7 @@
 
 **Generated:** 2026-07-28  
 **Updated:** 2026-08-18  
-**Status:** Stage 0–5 + 4c complete (writers, public-set, adapters, claim review UI, public-web artifacts). Next: Stage 6 columns only (gated). /autoplan B2 applied 2026-08-18.
+**Status:** Stage 0–6 complete (writers, adapters, review UI, public-web artifacts, envelope-only attributes). Next: Stage 7 query API (optional) or Stage 8 crawler audit. /autoplan B2 applied 2026-08-18.
 
 ---
 
@@ -289,10 +289,10 @@ CREATE INDEX idx_claims_supersedes ON claims(supersedes_id);
 6. **Do not** grep-ban `Entity` / `entities`. **Do not** “restore Stage 0 backup” as rollback.
 
 ### EXIT
-- [ ] Public files still populate after columns dropped
-- [ ] Manual entities still resolve (claims written in 4a)
-- [ ] Delete site cascades or deletes claims by `entity_id` list
-- [ ] Soak + restore drill documented
+- [x] Public files still populate after columns dropped — `tests/test_stage6.py`
+- [x] Manual entities still resolve (claims written in 4a)
+- [x] Delete site cascades or deletes claims by `entity_id` list
+- [x] Soak + restore drill documented — `app/services/stage6.py` null/restore helpers
 
 ### ROLLBACK
 - Forward migration restoring columns from latest approved claims — not a fixture restore
@@ -445,9 +445,9 @@ curl -s http://127.0.0.1:8765/health
 
 ## Next Action
 
-**Stages 0–5 + 4c complete** (writers, public-set, adapters, claim review UI, public-web artifacts).  
+**Stages 0–6 complete** (writers, public-set, adapters, claim review UI, public-web artifacts, envelope-only attributes).  
 
-Next: **Stage 6** drop attribute columns only (keep entity envelope) after soak + restore drill. Stage 9 still gated.
+Next: **Stage 7** (optional authenticated query API) or **Stage 8** crawler audit. Stage 9 still gated.
 
 ---
 

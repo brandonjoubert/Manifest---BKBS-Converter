@@ -94,6 +94,16 @@ def init_db() -> None:
     except Exception:
         # Fresh DB or non-sqlite: ignore
         pass
+    try:
+        from app.services.stage6 import null_attribute_columns
+
+        db = SessionLocal()
+        try:
+            null_attribute_columns(db)
+        finally:
+            db.close()
+    except Exception:
+        pass
 
 
 def get_db() -> Generator[Session, None, None]:

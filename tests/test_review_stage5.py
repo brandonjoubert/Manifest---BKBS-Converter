@@ -11,7 +11,7 @@ from app.models import Base, Claim, Entity
 from app.schemas import ExtractedEntity
 from app.services.claim_diff import can_bulk_approve, claim_diff_for_entity
 from app.services.claim_writer import apply_human_decision, apply_review_from_form
-from app.services.merger import apply_extracted
+from app.services.merger import apply_extracted, external_key
 from app.services.resolver import resolve_site
 
 
@@ -29,7 +29,8 @@ def _scan_cap(db, site_id, name, desc, job):
         job,
     )
     db.commit()
-    return db.query(Entity).filter(Entity.name == name).one()
+    key = external_key(site_id, "capability", name)
+    return db.query(Entity).filter(Entity.site_id == site_id, Entity.external_key == key).one()
 
 
 def test_diff_uses_claims_not_columns(tmp_path):

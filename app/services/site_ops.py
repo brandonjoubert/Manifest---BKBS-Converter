@@ -9,7 +9,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import Site
+from app.models import Claim, Entity, Site
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,10 @@ def delete_site_and_data(db: Session, site: Site) -> str:
     site_id = site.id
     name = site.name
     export_dir = settings.exports_dir / site_id
+
+    ids = [eid for (eid,) in db.query(Entity.id).filter(Entity.site_id == site_id).all()]
+    if ids:
+        db.query(Claim).filter(Claim.entity_id.in_(ids)).delete(synchronize_session=False)
 
     db.delete(site)
     db.commit()

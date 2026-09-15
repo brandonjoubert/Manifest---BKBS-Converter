@@ -41,14 +41,17 @@ def latest_pending_claim(db: Session, entity_id: str, attribute: str) -> Claim |
 
 
 def baseline_encoded_value(db: Session, entity: object, attribute: str) -> str | None:
-    """Encoded current truth: latest approved claim, else entity column encoding."""
+    """Encoded current truth: latest approved claim, else latest pending (Stage 6)."""
     eid = getattr(entity, "id", None)
-    if eid:
-        approved = latest_approved_claim(db, str(eid), attribute)
-        if approved is not None:
-            return approved.value
-    pairs = dict(entity_attribute_pairs(entity))
-    return pairs.get(attribute)
+    if not eid:
+        return None
+    approved = latest_approved_claim(db, str(eid), attribute)
+    if approved is not None:
+        return approved.value
+    pending = latest_pending_claim(db, str(eid), attribute)
+    if pending is not None:
+        return pending.value
+    return None
 
 
 def scan_attribute_pairs(extracted: object) -> list[tuple[str, str]]:
@@ -135,23 +138,18 @@ def propose_claims_from_extract(
     return stats
 
 
-def seed_pending_claims_for_new_entity(db: Session, entity: object) -> int:
-    """Insert pending claims mirroring a newly created entity shell."""
-    n = 0
-    entity_id = str(getattr(entity, "id"))
-    entity_type = str(getattr(entity, "entity_type") or "unknown")
-    extraction = str(getattr(entity, "source", None) or "scan")[:32]
-    for attr, value in scan_attribute_pairs(entity):
-        insert_pending_claim(
-            db,
-            entity_id=entity_id,
-            entity_type=entity_type,
-            attribute=attr,
-            value=value,
-            extraction_method=extraction,
-        )
-        n += 1
-    return n
+def seed_pending_claims_for_new_entity(
+    db: Session, entity: object, surface: object | None = None
+) -> int:
+    """Insert pending claims from extract (or entity) for a new envelope."""
+    src = surface if surface is not None else entity
+    return write_surface_claims(
+        db,
+        entity,
+        claim_status="pending",
+        extraction_method=str(getattr(src, "source", None) or getattr(entity, "source", None) or "scan"),
+        surface=src,
+    )
 
 
 def insert_approved_claim(
@@ -305,6 +303,8 @@ def seed_missing_approved_claims(
     n = 0
     for attr, value in scan_attribute_pairs(entity):
         if latest_approved_claim(db, entity_id, attr) is not None:
+            continue
+        if attr == "name" and (value == "" or value == '""'):
             continue
         insert_approved_claim(
             db,
@@ -478,11 +478,4 @@ def apply_review_from_form(
             entity.status = "needs_edit"  # type: ignore[attr-defined]
         elif previous == "approved" and getattr(entity, "status", None) == "approved":
             pass
-    if "name" in submitted:
-        decoded = decode_claim_value(submitted["name"])
-        if decoded:
-            entity.name = str(decoded)  # type: ignore[attr-defined]
-    if "description" in submitted:
-        decoded = decode_claim_value(submitted["description"])
-        entity.description = str(decoded) if decoded else None  # type: ignore[attr-defined]
     return stats

@@ -84,14 +84,16 @@ def _apply_claims_to_base(
 
 
 def _resolved_from_entity(ent: Entity, claims: dict[str, Claim]) -> ResolvedEntity:
-    name, description, properties, relationships, evidence, trust_level, source, status = (
+    # Stage 6: attributes come from claims only. Envelope review_status / trust / source
+    # stay on the entity row (not from a status claim).
+    name, description, properties, relationships, evidence, _tl, _src, _st = (
         _apply_claims_to_base(
             claims,
-            name=ent.name,
-            description=ent.description,
-            properties=dict(ent.properties or {}),
-            relationships=list(ent.relationships or []),
-            evidence=list(ent.evidence or []),
+            name="",
+            description=None,
+            properties={},
+            relationships=[],
+            evidence=[],
             trust_level=ent.trust_level or "medium",
             source=ent.source or "scan",
             status=ent.status or "approved",
@@ -106,9 +108,9 @@ def _resolved_from_entity(ent: Entity, claims: dict[str, Claim]) -> ResolvedEnti
         relationships=relationships,
         evidence=evidence,
         version=ent.version or 1,
-        trust_level=trust_level or "medium",
-        source=source or "scan",
-        status=status or "approved",
+        trust_level=ent.trust_level or "medium",
+        source=ent.source or "scan",
+        status=ent.status or "approved",
         last_updated=ent.last_updated,
         external_key=ent.external_key or "",
         notes=ent.notes,
@@ -116,17 +118,18 @@ def _resolved_from_entity(ent: Entity, claims: dict[str, Claim]) -> ResolvedEnti
     )
 
 
-def _latest_approved_claims_for_ids(
+def _latest_claims_for_ids(
     db: Session,
     entity_ids: list[str],
+    *,
+    status: str,
     as_of: datetime | None = None,
 ) -> dict[str, dict[str, Claim]]:
-    """Batch: entity_id -> {attribute: latest approved claim}."""
     if not entity_ids:
         return {}
     q = select(Claim).where(
         Claim.entity_id.in_(entity_ids),
-        Claim.status == "approved",
+        Claim.status == status,
     )
     if as_of is not None:
         q = q.where(
@@ -142,19 +145,33 @@ def _latest_approved_claims_for_ids(
     return out
 
 
+def _merge_claim_maps(
+    approved: dict[str, Claim], pending: dict[str, Claim]
+) -> dict[str, Claim]:
+    out = dict(approved)
+    out.update(pending)
+    return out
+
+
+def _latest_approved_claims_for_ids(
+    db: Session,
+    entity_ids: list[str],
+    as_of: datetime | None = None,
+) -> dict[str, dict[str, Claim]]:
+    """Batch: entity_id -> {attribute: latest approved claim}."""
+    return _latest_claims_for_ids(db, entity_ids, status="approved", as_of=as_of)
+
+
 def resolve_entity(
     entity_id: str | None = None,
     as_of: datetime | None = None,
     *,
     db: Session | None = None,
+    overlay_pending: bool = False,
 ) -> ResolvedEntity | None:
-    """Resolve an entity's attributes from claims (+ entity row hybrid).
+    """Resolve attributes from claims only (Stage 6). Envelope comes from the entity row.
 
-    Stage 2 behavior:
-    - No entity_id or no db → None (Stage 1 stub-compatible call sites)
-    - Unknown entity id → None
-    - Entity exists → always return envelope; claim attrs override when present;
-      missing claim attrs filled from entity columns (safe dual-path fallback)
+    overlay_pending: operator/draft view — pending claims win over approved.
     """
     if not entity_id or db is None:
         return None
@@ -164,6 +181,9 @@ def resolve_entity(
         return None
 
     claims = _latest_approved_claims(db, entity_id, as_of)
+    if overlay_pending:
+        pending = _latest_claims_for_ids(db, [entity_id], status="pending", as_of=as_of)
+        claims = _merge_claim_maps(claims, pending.get(entity_id, {}))
     return _resolved_from_entity(ent, claims)
 
 
@@ -178,21 +198,33 @@ def resolve_site(
     include_pending: bool = False,
     as_of: datetime | None = None,
 ) -> list[ResolvedEntity]:
-    """Resolve a site's publication set (batched approved-claim query).
+    """Resolve a site's publication set (batched claim query).
 
     Public (include_pending=False):
       envelope approved / needs_edit / stale → last approved snapshot
       envelope pending (never approved) and rejected → excluded
-    Draft (include_pending=True): also include pending via column fallback.
+    Draft (include_pending=True): include pending envelopes; pending claims overlay approved.
     """
     statuses = DRAFT_ENVELOPE_STATUSES if include_pending else PUBLIC_ENVELOPE_STATUSES
     ents = (
         db.query(Entity)
         .filter(Entity.site_id == site_id, Entity.status.in_(statuses))
-        .order_by(Entity.entity_type, Entity.name)
+        .order_by(Entity.entity_type, Entity.id)
         .all()
     )
     if not include_pending:
         ents = [e for e in ents if in_public_set(e.status)]
-    by_id = _latest_approved_claims_for_ids(db, [e.id for e in ents], as_of)
-    return [_resolved_from_entity(e, by_id.get(e.id, {})) for e in ents]
+    ids = [e.id for e in ents]
+    by_id = _latest_approved_claims_for_ids(db, ids, as_of)
+    pending_by = (
+        _latest_claims_for_ids(db, ids, status="pending", as_of=as_of)
+        if include_pending
+        else {}
+    )
+    out: list[ResolvedEntity] = []
+    for e in ents:
+        claims = by_id.get(e.id, {})
+        if include_pending:
+            claims = _merge_claim_maps(claims, pending_by.get(e.id, {}))
+        out.append(_resolved_from_entity(e, claims))
+    return out

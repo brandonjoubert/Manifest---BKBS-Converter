@@ -117,6 +117,11 @@ final class MBKBS_Database
         dbDelta($sql_entities);
         dbDelta($sql_settings);
         dbDelta($sql_claims);
+        // Stage 6: envelope-only attribute columns when claims exist.
+        $wpdb->query(
+            "UPDATE {$entities} SET name = '', description = NULL, properties = '{}', relationships = '[]', evidence = '[]'
+             WHERE id IN (SELECT DISTINCT entity_id FROM {$claims})"
+        );
         update_option('mbkbs_db_version', MBKBS_DB_VERSION);
 
         // Seed "this WordPress site" if empty.

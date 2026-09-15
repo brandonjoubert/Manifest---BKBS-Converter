@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claim Ledger Stage 6** (drop attribute columns as source of truth; keep entity envelope)
+  - Resolver reads name/description/properties/relationships/evidence from claims only
+  - New scans and manual creates write claims; envelope columns are cleared
+  - Operator/draft resolve overlays pending claims; public files stay last approved
+  - Delete site/entity removes claims by entity_id
+  - Restore drill: `restore_attribute_columns_from_claims` copies claims back onto columns
+  - Tests: `tests/test_stage6.py`, `php/scripts/verify_stage6.php`
 - **Claim Ledger Stage 4c** (additive public-web artifacts, all three editions)
   - Script-safe JSON-LD HTML snippet (`<` → `\u003c`) in ZIP as `schema/jsonld-snippet.html` and Copy on the site machine-layer card
   - WordPress: optional “Print JSON-LD in `wp_head` on homepage” — **default off**

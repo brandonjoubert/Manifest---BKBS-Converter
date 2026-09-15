@@ -103,6 +103,9 @@ def seed_and_export_python(tmp: Path) -> Path:
             )
         )
     db.commit()
+    from app.services.stage6 import null_attribute_columns
+
+    null_attribute_columns(db)
 
     export_root = tmp / "exports"
     export_root.mkdir(parents=True, exist_ok=True)

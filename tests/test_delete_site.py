@@ -1,6 +1,6 @@
 from app.config import settings
 from app.db import SessionLocal, init_db
-from app.models import Entity, Site
+from app.models import Claim, Entity, Site
 from app.services.site_ops import delete_site_and_data
 
 
@@ -25,6 +25,18 @@ def test_delete_site_removes_db_and_export_dir():
             )
         )
         db.commit()
+        eid = db.query(Entity).filter(Entity.site_id == site_id).one().id
+        db.add(
+            Claim(
+                entity_id=eid,
+                entity_type="capability",
+                attribute="name",
+                value="Test Cap",
+                extraction_method="manual",
+                status="pending",
+            )
+        )
+        db.commit()
 
         export_path = settings.exports_dir / site_id
         export_path.mkdir(parents=True, exist_ok=True)
@@ -34,6 +46,7 @@ def test_delete_site_removes_db_and_export_dir():
         assert name == "To Delete"
         assert db.get(Site, site_id) is None
         assert db.query(Entity).filter(Entity.site_id == site_id).count() == 0
+        assert db.query(Claim).filter(Claim.entity_id == eid).count() == 0
         assert not export_path.exists()
     finally:
         db.close()

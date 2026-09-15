@@ -101,6 +101,9 @@ jobs:
       - name: Claim Ledger Stage 4c artifacts (PHP)
         run: php php/scripts/verify_stage4c.php
 
+      - name: Claim Ledger Stage 6 envelope (PHP)
+        run: php php/scripts/verify_stage6.php
+
       - name: PHP Resolver + backfill lint (Stage 2)
         run: |
           php -l php/src/Resolver.php
@@ -114,6 +117,7 @@ jobs:
           php -l php/src/Exports/Robots.php
           php -l php/src/Exports/JsonLdSnippet.php
           php -l php/scripts/verify_stage4c.php
+          php -l php/scripts/verify_stage6.php
 
   package-php-zip:
     name: PHP zip present
