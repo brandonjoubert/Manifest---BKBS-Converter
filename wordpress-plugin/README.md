@@ -46,7 +46,7 @@ Commit the updated zip when shipping plugin changes.
 
 ## First-use workflow (error-free path)
 
-1. **Settings** — optional OpenAI-compatible LLM API key (without it, scans use heuristics only).  
+1. **Settings** — optional OpenAI-compatible LLM API key (without it, scans use heuristics only). Query API token is generated here (`/wp-json/mbkbs/v1/entities/{id}`).  
 2. **Dashboard** — scan this WordPress site (or add another base URL).  
 3. **Entities** — open each pending item → **Edit before approve** if needed → Approve.  
 4. **Publish live (approved only)** — optionally tick “write static files into the WordPress root”.  

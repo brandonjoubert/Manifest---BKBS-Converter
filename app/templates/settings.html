@@ -104,6 +104,20 @@
       </p>
     </div>
   </div>
+
+  <div class="card" style="margin-top:1rem">
+    <h2 style="margin-top:0">Query API token</h2>
+    <p class="muted">
+      JSON under <code>/api/*</code> requires this token.
+      Send <code>Authorization: Bearer</code> or <code>X-API-Key</code>.
+      Public files (<code>/llms.txt</code>, JSON-LD) stay anonymous HTTP.
+    </p>
+    <p><code id="bkbs-api-token">{{ api_token }}</code></p>
+    <p class="muted" style="font-size:0.85rem">
+      Override with env <code>BKBS_API_TOKEN</code>. Otherwise the token is stored in
+      <code>data/.api_token</code>.
+    </p>
+  </div>
 {% endblock %}
 
 {% block scripts %}

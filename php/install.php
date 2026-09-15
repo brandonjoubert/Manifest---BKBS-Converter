@@ -57,7 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             require $root . '/src/bootstrap.php';
             try {
-                bkbs_db();
+                $db = bkbs_db();
+                if (trim((string) ($db->getSetting('api.token', '') ?? '')) === '') {
+                    $db->setSetting('api.token', bin2hex(random_bytes(24)));
+                }
                 @chmod($configPath, 0640);
                 @chmod($dataDir, 0750);
                 $done = true;

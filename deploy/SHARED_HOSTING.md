@@ -156,6 +156,8 @@ If publish fails with “not writable”, fix ownership/permissions in cPanel Fi
 
 ## API
 
+All `/api/*` routes require `Authorization: Bearer <token>` or `X-API-Key` (Stage 7). Set `BKBS_API_TOKEN` or copy the token from Settings. `/health` and published origin files stay anonymous.
+
 ```http
 POST /api/sites/{id}/publish
 ```
@@ -167,6 +169,13 @@ POST /api/sites/{id}/export
 ```
 
 Builds ZIP; if `auto_publish` is on, also writes live files.
+
+```http
+GET /api/entities/{id}?as_of=
+GET /api/entities/{id}/claims
+```
+
+Authenticated knowledge reads. `as_of` uses `approved_at`.
 
 ---
 

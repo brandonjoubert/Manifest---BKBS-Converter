@@ -25,7 +25,7 @@ define('MBKBS_VERSION', '0.1.0');
 define('MBKBS_PLUGIN_FILE', __FILE__);
 define('MBKBS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MBKBS_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('MBKBS_DB_VERSION', '3');
+define('MBKBS_DB_VERSION', '4');
 
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-database.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-backfill.php';
@@ -41,6 +41,7 @@ require_once MBKBS_PLUGIN_DIR . 'includes/exports/class-mbkbs-export-agent.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/exports/class-mbkbs-export-jsonld.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/exports/class-mbkbs-export-robots.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-publisher.php';
+require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-query-api.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-plugin.php';
 
 register_activation_hook(__FILE__, ['MBKBS_Database', 'activate']);

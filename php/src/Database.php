@@ -112,6 +112,10 @@ SQL);
             "UPDATE entities SET name = '', description = NULL, properties = '{}', relationships = '[]', evidence = '[]'
              WHERE id IN (SELECT DISTINCT entity_id FROM claims)"
         );
+        // Stage 7: as_of reads approved_at.
+        $this->pdo->exec(
+            "UPDATE claims SET approved_at = created_at WHERE status = 'approved' AND approved_at IS NULL"
+        );
     }
 
     private function ensureColumn(string $table, string $column, string $ddl): void

@@ -7,13 +7,18 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.services.api_auth import require_api_token
 from app.services.llm_settings import (
     public_llm_status,
     save_llm_settings,
     test_llm_connection,
 )
 
-router = APIRouter(prefix="/api/settings", tags=["settings"])
+router = APIRouter(
+    prefix="/api/settings",
+    tags=["settings"],
+    dependencies=[Depends(require_api_token)],
+)
 
 
 class LlmSettingsUpdate(BaseModel):

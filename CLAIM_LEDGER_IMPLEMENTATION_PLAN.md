@@ -4,8 +4,8 @@
 **Purpose:** Convert entity store from mutable rows to append-only claim ledger, with explicit stage gates for safe incremental deployment.
 
 **Generated:** 2026-07-28  
-**Updated:** 2026-08-18  
-**Status:** Stage 0–6 complete (writers, adapters, review UI, public-web artifacts, envelope-only attributes). Next: Stage 7 query API (optional) or Stage 8 crawler audit. /autoplan B2 applied 2026-08-18.
+**Updated:** 2026-09-15  
+**Status:** Stage 0–7 complete (writers, adapters, review UI, public-web artifacts, envelope-only attributes, authenticated query API). Next: Stage 8 crawler audit. /autoplan B2 applied 2026-08-18.
 
 ---
 
@@ -311,9 +311,9 @@ CREATE INDEX idx_claims_supersedes ON claims(supersedes_id);
 - Origin `/llms.txt` etc. remain anonymous HTTP
 
 ### EXIT
-- [ ] Unauthenticated `/api/entities` is 401
-- [ ] `as_of` uses `approved_at` (required on approve)
-- [ ] No MCP required for origin files
+- [x] Unauthenticated `/api/entities` is 401 — `tests/test_stage7.py`, `php/scripts/verify_stage7.php`
+- [x] `as_of` uses `approved_at` (required on approve)
+- [x] No MCP required for origin files
 
 ---
 
@@ -425,6 +425,10 @@ pytest tests/test_export_stage4.py -q   # T1–T4, T7 — pending must not go li
 # Stage 4b: adapters still match goldens
 python scripts/verify_exports.py --edition all
 
+# Stage 7: authenticated query API
+pytest tests/test_stage7.py -q
+php php/scripts/verify_stage7.php
+
 # Any stage: smoke
 curl -s http://127.0.0.1:8765/health
 ```
@@ -440,14 +444,15 @@ curl -s http://127.0.0.1:8765/health
 | Resolve | `app/services/resolver.py` | `php/src/Resolver.php` | `MBKBS_Resolver` |
 | Publish | `publish_live.py` / `app/exports/` | `php/src/Publisher.php` + `Exports/` | `MBKBS_Publisher` + `exports/` |
 | Verify / UI | `app/api/entities.py`, templates | `Router.php` + templates | `class-mbkbs-admin.php` + views |
+| Query API | `api_auth.py` + `GET /api/entities/{id}` | `api/entities/{id}` | `MBKBS_Query_API` REST |
 
 ---
 
 ## Next Action
 
-**Stages 0–6 complete** (writers, public-set, adapters, claim review UI, public-web artifacts, envelope-only attributes).  
+**Stages 0–7 complete** (writers, public-set, adapters, claim review UI, public-web artifacts, envelope-only attributes, authenticated query API).  
 
-Next: **Stage 7** (optional authenticated query API) or **Stage 8** crawler audit. Stage 9 still gated.
+Next: **Stage 8** crawler audit. Stage 9 still gated.
 
 ---
 

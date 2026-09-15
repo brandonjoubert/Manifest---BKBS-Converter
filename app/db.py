@@ -78,6 +78,13 @@ def _migrate_sqlite() -> None:
                     "ON claims(supersedes_id)"
                 )
             )
+            # Stage 7: as_of reads approved_at; backfill legacy approved rows.
+            conn.execute(
+                text(
+                    "UPDATE claims SET approved_at = created_at "
+                    "WHERE status = 'approved' AND approved_at IS NULL"
+                )
+            )
         conn.commit()
 
 

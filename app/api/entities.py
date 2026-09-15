@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -12,12 +14,14 @@ from app.db import get_db
 from app.models import Claim, Entity, Site, utcnow
 from app.schemas import (
     BulkVerify,
+    ClaimOut,
     EntityCreate,
     EntityOut,
     EntityUpdate,
     FreeTextConvert,
     VerifyAction,
 )
+from app.services.api_auth import require_api_token
 from app.services.claim_diff import can_bulk_approve, claim_diff_for_entity
 from app.services.claim_writer import apply_human_decision, write_surface_claims
 from app.services.extractor_llm import convert_free_text
@@ -25,8 +29,19 @@ from app.services.merger import apply_extracted, external_key
 from app.services.resolver import resolve_entity
 
 
-def _to_out(db: Session, ent: Entity) -> EntityOut:
-    r = resolve_entity(ent.id, db=db, overlay_pending=True)
+def _to_out(
+    db: Session,
+    ent: Entity,
+    *,
+    overlay_pending: bool = True,
+    as_of: datetime | None = None,
+) -> EntityOut:
+    r = resolve_entity(
+        ent.id,
+        as_of=as_of,
+        db=db,
+        overlay_pending=overlay_pending if as_of is None else False,
+    )
     return EntityOut(
         id=ent.id,
         site_id=ent.site_id,
@@ -54,7 +69,7 @@ def _clear_attribute_columns(ent: Entity) -> None:
     ent.relationships = []
     ent.evidence = []
 
-router = APIRouter(tags=["entities"])
+router = APIRouter(tags=["entities"], dependencies=[Depends(require_api_token)])
 
 
 @router.get("/api/sites/{site_id}/entities", response_model=list[EntityOut])
@@ -92,11 +107,34 @@ def list_entities(
 
 
 @router.get("/api/entities/{entity_id}", response_model=EntityOut)
-def get_entity(entity_id: str, db: Session = Depends(get_db)):
+def get_entity(
+    entity_id: str,
+    as_of: datetime | None = Query(None),
+    db: Session = Depends(get_db),
+):
     ent = db.get(Entity, entity_id)
     if not ent:
         raise HTTPException(404, "Entity not found")
-    return _to_out(db, ent)
+    return _to_out(db, ent, overlay_pending=as_of is None, as_of=as_of)
+
+
+@router.get("/api/entities/{entity_id}/claims", response_model=list[ClaimOut])
+def list_entity_claims(
+    entity_id: str,
+    as_of: datetime | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    ent = db.get(Entity, entity_id)
+    if not ent:
+        raise HTTPException(404, "Entity not found")
+    query = db.query(Claim).filter(Claim.entity_id == entity_id)
+    if as_of is not None:
+        query = query.filter(
+            ((Claim.approved_at != None) & (Claim.approved_at <= as_of))  # noqa: E711
+            | ((Claim.approved_at == None) & (Claim.created_at <= as_of))  # noqa: E711
+        )
+    rows = query.order_by(Claim.id.asc()).all()
+    return [ClaimOut.model_validate(c) for c in rows]
 
 
 @router.patch("/api/entities/{entity_id}", response_model=EntityOut)

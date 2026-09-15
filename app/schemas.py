@@ -124,6 +124,24 @@ class EntityUpdate(BaseModel):
         return v
 
 
+class ClaimOut(BaseModel):
+    id: int
+    entity_id: str
+    entity_type: str
+    attribute: str
+    value: str
+    source_url: str | None = None
+    extraction_method: str
+    confidence: float | None = None
+    status: str
+    supersedes_id: int | None = None
+    created_at: datetime
+    approved_by: str | None = None
+    approved_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class EntityOut(BaseModel):
     id: str
     site_id: str

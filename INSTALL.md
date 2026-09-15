@@ -26,6 +26,7 @@ Plain-text card: [INSTALL.txt](./INSTALL.txt).
 13. [Verify the monorepo (quality gates)](#13-verify-the-monorepo-quality-gates)  
 14. [Claim Ledger Stage 2 — one-time backfill](#14-claim-ledger-stage-2--one-time-backfill)  
 15. [Quick reference](#15-quick-reference)  
+16. [Authenticated query API](#16-authenticated-query-api)  
 
 ---
 
@@ -737,6 +738,7 @@ Whenever the website content changes:
 - [ ] Prefer admin UI on a **subdomain** with HTTPS  
 - [ ] Add **password protection** (cPanel Directory Privacy, HTTP basic auth, or reverse-proxy auth) on the admin URL  
 - [ ] Do not commit API keys to git; use Settings UI or server env  
+- [ ] Treat the **query API token** like a password (`BKBS_API_TOKEN` / Settings). `/api/*` is not public. Origin `/llms.txt` stays anonymous.  
 - [ ] Publish only **approved** entities  
 - [ ] Keep PHP/Python and packages reasonably up to date  
 
@@ -795,12 +797,14 @@ Run these from a **clone root** after `pip install -r requirements.txt` (Python 
 | **Stage 0** | `python scripts/verify_exports.py --edition all` | Entity-path exports match goldens (Python + PHP if `php` available) |
 | **Stage 1** | `python scripts/stage1_contract_check.py` | Claims schema + resolver modules in **all three** editions |
 | **Stage 2** | `python scripts/verify_exports_via_resolve.py --edition all` | Backfill + real resolve match goldens |
+| **Stage 7** | `pytest tests/test_stage7.py -q` · `php php/scripts/verify_stage7.php` | Auth query API; `as_of` uses `approved_at` |
 
 ```bash
 pytest -q
 python scripts/verify_exports.py --edition all
 python scripts/stage1_contract_check.py
 python scripts/verify_exports_via_resolve.py --edition all
+php php/scripts/verify_stage7.php
 ```
 
 **PHP notes:** Stage 0/2 PHP steps need the `php` CLI. Stage 2 PHP via-resolve needs **`pdo_sqlite`**. Without them, local checks may skip PHP portions; CI and the PHP harness image still enforce them.
@@ -911,6 +915,22 @@ wp-admin → Plugins → Upload → Activate → Manifest BKBS
 
 Claim backfill (optional): [§14](#14-claim-ledger-stage-2--one-time-backfill).  
 After Stage 3, **rescans** write **pending claims** and may set entity status to `needs_edit` without changing published attribute columns until you edit/approve (Stage 5 will apply claim diffs). Stage 4a: **Approve** writes those claims; live files keep the last approved snapshot while an item is `needs_edit` or `stale`, and never publish never-approved pending or rejected entities.
+
+---
+
+## 16. Authenticated query API
+
+Stage 7 exposes **approved** entity snapshots and the claim ledger over JSON. It is **not** anonymous.
+
+| Edition | Entity | Claims | Auth |
+|---------|--------|--------|------|
+| Python | `GET /api/entities/{id}?as_of=` | `GET /api/entities/{id}/claims` | `Authorization: Bearer` or `X-API-Key`. Token: env `BKBS_API_TOKEN` or Settings (stored in `data/.api_token`). All `/api/*` routes require it. |
+| PHP Host | `GET index.php?r=api/entities/{id}&as_of=` | `GET index.php?r=api/entities/{id}/claims` | Same headers. Token on Settings (generated at install). |
+| WordPress | `GET /wp-json/mbkbs/v1/entities/{id}?as_of=` | `GET /wp-json/mbkbs/v1/entities/{id}/claims` | Logged-in admin (`manage_options`) or bearer token from Settings. |
+
+`as_of` is an ISO-8601 timestamp. Resolve uses **`approved_at`** on approved claims (set on every approve). Unauthenticated `/api/entities` is **401**. Published origin files (`/llms.txt`, `graph.json`, JSON-LD) stay **anonymous HTTP**. No MCP is required.
+
+Python HTML UI (forms) does not need the token. Export ZIP download for operators is `/exports/{id}/download`.
 
 ---
 

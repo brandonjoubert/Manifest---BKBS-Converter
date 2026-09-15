@@ -176,7 +176,7 @@
             <td>{{ e.entity_count }}</td>
             <td>{{ "yes" if e.include_pending else "no" }}</td>
             <td class="muted">{{ e.created_at }}</td>
-            <td><a class="btn btn-sm" href="/api/exports/{{ e.id }}/download">Download</a></td>
+            <td><a class="btn btn-sm" href="/exports/{{ e.id }}/download">Download</a></td>
           </tr>
           {% endfor %}
         </tbody>

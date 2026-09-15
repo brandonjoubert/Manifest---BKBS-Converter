@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claim Ledger Stage 7** (authenticated query API, all three editions)
+  - `/api/*` requires `Authorization: Bearer` or `X-API-Key` (Python). PHP JSON `api/entities/{id}` and `/claims` use the same headers. WordPress REST `/wp-json/mbkbs/v1/entities/{id}` accepts an admin session or the bearer token.
+  - `GET .../entities/{id}?as_of=` resolves the approved snapshot using `approved_at` (set on every approve; legacy rows backfilled from `created_at`)
+  - `GET .../entities/{id}/claims` returns the append-only ledger
+  - Origin `/llms.txt` and other published files stay anonymous HTTP
+  - Operator HTML UI stays cookie/session (or local-open); ZIP download moved to `/exports/{id}/download`
+  - Tests: `tests/test_stage7.py`, `php/scripts/verify_stage7.php`
 - **Claim Ledger Stage 6** (drop attribute columns as source of truth; keep entity envelope)
   - Resolver reads name/description/properties/relationships/evidence from claims only
   - New scans and manual creates write claims; envelope columns are cleared

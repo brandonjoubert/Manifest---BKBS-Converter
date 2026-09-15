@@ -9,10 +9,11 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Export, Site
 from app.schemas import ExportOut, ExportRequest
+from app.services.api_auth import require_api_token
 from app.services.export_package import create_export_package, zip_path_for_export
 from app.services.publish_live import publish_site_live
 
-router = APIRouter(tags=["exports"])
+router = APIRouter(tags=["exports"], dependencies=[Depends(require_api_token)])
 
 
 @router.post("/api/sites/{site_id}/export", response_model=ExportOut)

@@ -28,3 +28,9 @@
     <button class="btn" type="submit">Test connection</button>
   </form>
 </div>
+
+<div class="card">
+  <h2>Query API token</h2>
+  <p class="muted">JSON under <code>api/entities/{id}</code> and <code>/claims</code> requires this token (<code>Authorization: Bearer</code> or <code>X-API-Key</code>). Origin files stay anonymous.</p>
+  <p><code id="bkbs-api-token"><?= h((string) ($api_token ?? '')) ?></code></p>
+</div>

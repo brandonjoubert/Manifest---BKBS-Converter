@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     # Default public web root when site.publish_root is empty (shared hosting)
     # e.g. /home/username/public_html or ../public_html
     default_publish_root: str = ""
+    # Stage 7: required for /api/*. Empty → generated and stored in data/.api_token
+    bkbs_api_token: str = ""
 
     # Crawl defaults
     default_max_pages: int = 40

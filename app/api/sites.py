@@ -9,9 +9,14 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Entity, ScanJob, Site
 from app.schemas import SiteCreate, SiteOut, SiteUpdate
+from app.services.api_auth import require_api_token
 from app.services.site_ops import delete_site_and_data
 
-router = APIRouter(prefix="/api/sites", tags=["sites"])
+router = APIRouter(
+    prefix="/api/sites",
+    tags=["sites"],
+    dependencies=[Depends(require_api_token)],
+)
 
 
 def site_to_out(db: Session, site: Site) -> SiteOut:

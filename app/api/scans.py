@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import ScanJob, Site
 from app.schemas import ScanJobOut
+from app.services.api_auth import require_api_token
 from app.services.scan_runner import enqueue_scan
 
-router = APIRouter(tags=["scans"])
+router = APIRouter(tags=["scans"], dependencies=[Depends(require_api_token)])
 
 
 @router.post("/api/sites/{site_id}/scan", response_model=ScanJobOut)

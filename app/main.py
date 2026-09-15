@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -23,7 +23,7 @@ from app.config import settings
 from app.constants import ENTITY_TYPE_LABELS, ENTITY_TYPES, STATUS_LABELS
 from app.db import get_db, init_db
 from app.models import Entity, EntityVersion, Export, ScanJob, Site, utcnow
-from app.services.export_package import create_export_package
+from app.services.export_package import create_export_package, zip_path_for_export
 from app.services.extractor_llm import convert_free_text
 from app.services.llm_settings import (
     PROVIDER_PRESETS,
@@ -51,6 +51,7 @@ from app.services.publish_live import (
     suggested_local_publish_root,
 )
 from app.services.scan_runner import enqueue_scan
+from app.services.api_auth import resolve_api_token
 from app.services.site_ops import delete_site_and_data
 
 
@@ -794,8 +795,25 @@ def ui_export(
     if site.auto_publish and not draft:
         publish_site_live(db, site, include_pending=False)
     return RedirectResponse(
-        f"/api/exports/{export.id}/download",
+        f"/exports/{export.id}/download",
         status_code=303,
+    )
+
+
+@app.get("/exports/{export_id}/download")
+def ui_download_export(export_id: str, db: Session = Depends(get_db)):
+    """Operator HTML download (API download stays behind the Stage 7 token)."""
+    export = db.get(Export, export_id)
+    if not export:
+        return RedirectResponse("/?err=Export+not+found", status_code=303)
+    try:
+        zpath = zip_path_for_export(export)
+    except FileNotFoundError:
+        return RedirectResponse("/?err=Export+file+missing", status_code=303)
+    return FileResponse(
+        path=str(zpath),
+        filename=f"bkbs-export-{export.id[:8]}.zip",
+        media_type="application/zip",
     )
 
 
@@ -811,6 +829,7 @@ def ui_settings(request: Request, db: Session = Depends(get_db)):
             "msg": request.query_params.get("msg"),
             "err": request.query_params.get("err"),
             "test_result": request.query_params.get("test"),
+            "api_token": resolve_api_token(),
         }
         | llm_template_context(db),
     )

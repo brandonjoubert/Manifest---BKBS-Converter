@@ -208,12 +208,11 @@ final class MBKBS_Resolver
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $rows = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT * FROM {$claims} WHERE entity_id = %s AND status = %s AND (
+                    "SELECT * FROM {$claims} WHERE entity_id = %s AND status IN ('approved','superseded') AND (
                         (approved_at IS NOT NULL AND approved_at <= %s)
                         OR (approved_at IS NULL AND created_at <= %s)
                     )",
                     $entity_id,
-                    'approved',
                     $as_of,
                     $as_of
                 ),

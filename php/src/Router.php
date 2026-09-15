@@ -14,6 +14,11 @@ final class Router
             redirect(url('install'));
         }
 
+        if (str_starts_with($route, 'api/')) {
+            $this->dispatchApi($route, $method);
+            return;
+        }
+
 match (true) {
             $route === 'home' && $method === 'GET' => $this->home(),
             $route === 'sites/create' && $method === 'POST' => $this->siteCreate(),
@@ -42,6 +47,47 @@ match (true) {
     {
         $parts = explode('/', $route);
         return $parts[$index] ?? '';
+    }
+
+    private function dispatchApi(string $route, string $method): void
+    {
+        bkbs_require_api_auth();
+        if (str_starts_with($route, 'api/entities/') && str_ends_with($route, '/claims') && $method === 'GET') {
+            $id = $this->idFrom($route, 2);
+            $this->apiEntityClaims($id);
+            return;
+        }
+        if (str_starts_with($route, 'api/entities/') && $method === 'GET') {
+            $id = $this->idFrom($route, 2);
+            $this->apiEntity($id);
+            return;
+        }
+        bkbs_json_error(404, 'Not found');
+    }
+
+    private function apiEntity(string $entityId): void
+    {
+        $asOf = trim((string) ($_GET['as_of'] ?? ''));
+        $asOf = $asOf !== '' ? $asOf : null;
+        $pdo = bkbs_db()->pdo();
+        $resolved = Resolver::resolveEntity($entityId, $asOf, $pdo);
+        if ($resolved === null) {
+            bkbs_json_error(404, 'Entity not found');
+        }
+        bkbs_json($resolved);
+    }
+
+    private function apiEntityClaims(string $entityId): void
+    {
+        $pdo = bkbs_db()->pdo();
+        $st = $pdo->prepare('SELECT id FROM entities WHERE id = ?');
+        $st->execute([$entityId]);
+        if (!$st->fetch()) {
+            bkbs_json_error(404, 'Entity not found');
+        }
+        $asOf = trim((string) ($_GET['as_of'] ?? ''));
+        $asOf = $asOf !== '' ? $asOf : null;
+        bkbs_json(Resolver::listClaims($pdo, $entityId, $asOf));
     }
 
     private function home(): void
@@ -700,6 +746,7 @@ match (true) {
             'api_key_set' => (bool) $db->getSetting('llm.api_key', ''),
             'enabled' => $db->getSetting('llm.enabled', '1') !== '0',
             'has_llm' => LlmClient::fromSettings($db) !== null,
+            'api_token' => bkbs_api_token(),
         ]);
     }
 

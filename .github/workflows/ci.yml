@@ -104,6 +104,9 @@ jobs:
       - name: Claim Ledger Stage 6 envelope (PHP)
         run: php php/scripts/verify_stage6.php
 
+      - name: Claim Ledger Stage 7 query API (PHP)
+        run: php php/scripts/verify_stage7.php
+
       - name: PHP Resolver + backfill lint (Stage 2)
         run: |
           php -l php/src/Resolver.php
@@ -118,6 +121,8 @@ jobs:
           php -l php/src/Exports/JsonLdSnippet.php
           php -l php/scripts/verify_stage4c.php
           php -l php/scripts/verify_stage6.php
+          php -l php/scripts/verify_stage7.php
+          php -l wordpress-plugin/manifest-bkbs-converter/includes/class-mbkbs-query-api.php
 
   package-php-zip:
     name: PHP zip present

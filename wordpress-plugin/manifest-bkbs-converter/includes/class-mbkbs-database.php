@@ -122,6 +122,12 @@ final class MBKBS_Database
             "UPDATE {$entities} SET name = '', description = NULL, properties = '{}', relationships = '[]', evidence = '[]'
              WHERE id IN (SELECT DISTINCT entity_id FROM {$claims})"
         );
+        $wpdb->query(
+            "UPDATE {$claims} SET approved_at = created_at WHERE status = 'approved' AND approved_at IS NULL"
+        );
+        if (self::get_setting('api.token', '') === '') {
+            self::set_setting('api.token', bin2hex(random_bytes(24)));
+        }
         update_option('mbkbs_db_version', MBKBS_DB_VERSION);
 
         // Seed "this WordPress site" if empty.

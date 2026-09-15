@@ -205,6 +205,7 @@ final class MBKBS_Admin
         $aipref_search = MBKBS_Database::get_setting('aipref.search', '0') === '1';
         $aipref_ai_input = MBKBS_Database::get_setting('aipref.ai_input', '0') === '1';
         $aipref_train_ai = MBKBS_Database::get_setting('aipref.train_ai', '0') === '1';
+        $api_token = MBKBS_Query_API::ensure_token();
         include MBKBS_PLUGIN_DIR . 'admin/views/settings.php';
     }
 

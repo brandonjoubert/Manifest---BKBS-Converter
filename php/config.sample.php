@@ -8,4 +8,5 @@ return [
     'db_path' => __DIR__ . '/data/bkbs.sqlite',
     'default_publish_root' => '', // e.g. /home/user/public_html or dirname(__DIR__)
     'admin_password' => '', // optional simple lock (future)
+    'api_token' => '', // Stage 7 query API; empty → generated into settings api.token
 ];

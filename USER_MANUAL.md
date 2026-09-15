@@ -8,7 +8,8 @@ Clone/install paths: **[README.md](./README.md)** · **[INSTALL.md](./INSTALL.md
 **WordPress** users: use **[wordpress-plugin/README.md](./wordpress-plugin/README.md)** (separate UI; same publish goals).
 
 **Daily loop:** Settings (optional LLM) → Add site → Scan → **Edit before approve** → Approve → Publish live → check `/llms.txt`.  
-Only **approved** entities are published. Claim-ledger backfill is optional (see INSTALL.md §14); it is not required for normal publishing.
+Only **approved** entities are published. Claim-ledger backfill is optional (see INSTALL.md §14); it is not required for normal publishing.  
+JSON query API (`/api/entities/{id}`, `?as_of=`, `/claims`) needs the token on Settings; public `/llms.txt` does not. See [INSTALL.md §16](./INSTALL.md#16-authenticated-query-api).
 
 ---
 

@@ -24,15 +24,18 @@ def _latest_approved_claims(
     as_of: datetime | None = None,
 ) -> dict[str, Claim]:
     """Map attribute -> latest approved claim (highest id wins)."""
-    q = select(Claim).where(
-        Claim.entity_id == entity_id,
-        Claim.status == "approved",
-    )
     if as_of is not None:
-        # Prefer approved_at when set; else created_at
-        q = q.where(
+        # Point-in-time: include rows later superseded so as_of can see prior facts.
+        q = select(Claim).where(
+            Claim.entity_id == entity_id,
+            Claim.status.in_(("approved", "superseded")),
             ((Claim.approved_at != None) & (Claim.approved_at <= as_of))  # noqa: E711
-            | ((Claim.approved_at == None) & (Claim.created_at <= as_of))  # noqa: E711
+            | ((Claim.approved_at == None) & (Claim.created_at <= as_of)),  # noqa: E711
+        )
+    else:
+        q = select(Claim).where(
+            Claim.entity_id == entity_id,
+            Claim.status == "approved",
         )
     rows = list(db.scalars(q).all())
     by_attr: dict[str, Claim] = {}

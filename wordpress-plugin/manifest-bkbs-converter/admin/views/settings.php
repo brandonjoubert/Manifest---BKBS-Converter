@@ -56,4 +56,10 @@ $msg = isset($_GET['mbkbs_msg']) ? sanitize_text_field(wp_unslash((string) $_GET
     <p><label><input type="checkbox" name="aipref_train_ai" value="1" <?php checked(!empty($aipref_train_ai)); ?> /> <?php esc_html_e('Allow AI training (train-ai)', 'manifest-bkbs'); ?></label></p>
     <button class="button" type="submit"><?php esc_html_e('Save machine-layer settings', 'manifest-bkbs'); ?></button>
   </form>
+
+  <div class="mbkbs-card">
+    <h2><?php esc_html_e('Query API token', 'manifest-bkbs'); ?></h2>
+    <p class="mbkbs-muted"><?php esc_html_e('REST /wp-json/mbkbs/v1/entities/{id} and /claims require a logged-in admin or this bearer token. Public knowledge files stay anonymous.', 'manifest-bkbs'); ?></p>
+    <p><code id="bkbs-api-token"><?php echo esc_html((string) ($api_token ?? '')); ?></code></p>
+  </div>
 </div>

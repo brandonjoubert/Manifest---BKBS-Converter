@@ -65,6 +65,84 @@ function render(string $template, array $vars = []): void
     require $root . '/templates/layout_footer.php';
 }
 
+function bkbs_json(array $payload, int $code = 200): never
+{
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function bkbs_json_error(int $code, string $message): never
+{
+    if ($code === 401) {
+        header('WWW-Authenticate: Bearer');
+    }
+    bkbs_json(['error' => $message], $code);
+}
+
+function bkbs_request_api_token(): string
+{
+    $hdr = '';
+    if (function_exists('getallheaders')) {
+        foreach (getallheaders() as $k => $v) {
+            if (strcasecmp((string) $k, 'Authorization') === 0) {
+                $hdr = (string) $v;
+                break;
+            }
+        }
+    }
+    if ($hdr === '') {
+        $hdr = (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+    }
+    if (stripos($hdr, 'Bearer ') === 0) {
+        return trim(substr($hdr, 7));
+    }
+    $key = '';
+    if (function_exists('getallheaders')) {
+        foreach (getallheaders() as $k => $v) {
+            if (strcasecmp((string) $k, 'X-API-Key') === 0) {
+                $key = (string) $v;
+                break;
+            }
+        }
+    }
+    if ($key === '') {
+        $key = (string) ($_SERVER['HTTP_X_API_KEY'] ?? '');
+    }
+    return trim($key);
+}
+
+function bkbs_api_token(): string
+{
+    $cfg = bkbs_config();
+    $fromCfg = trim((string) ($cfg['api_token'] ?? ''));
+    if ($fromCfg !== '') {
+        return $fromCfg;
+    }
+    $env = trim((string) (getenv('BKBS_API_TOKEN') ?: ''));
+    if ($env !== '') {
+        return $env;
+    }
+    $db = bkbs_db();
+    $stored = trim((string) ($db->getSetting('api.token', '') ?? ''));
+    if ($stored !== '') {
+        return $stored;
+    }
+    $token = bin2hex(random_bytes(24));
+    $db->setSetting('api.token', $token);
+    return $token;
+}
+
+function bkbs_require_api_auth(): void
+{
+    $provided = bkbs_request_api_token();
+    $expected = bkbs_api_token();
+    if ($provided === '' || !hash_equals($expected, $provided)) {
+        bkbs_json_error(401, 'Unauthorized');
+    }
+}
+
 function uuid(): string
 {
     $data = random_bytes(16);

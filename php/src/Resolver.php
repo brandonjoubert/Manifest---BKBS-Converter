@@ -41,6 +41,28 @@ final class Resolver
         return self::buildResolved($ent, $claims);
     }
 
+    /**
+     * Stage 7: ledger rows for an entity (optional as-of on approved_at/created_at).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function listClaims(\PDO $pdo, string $entityId, ?string $asOf = null): array
+    {
+        if ($asOf !== null && $asOf !== '') {
+            $st = $pdo->prepare(
+                'SELECT * FROM claims WHERE entity_id = ? AND (
+                    (approved_at IS NOT NULL AND approved_at <= ?)
+                    OR (approved_at IS NULL AND created_at <= ?)
+                ) ORDER BY id ASC'
+            );
+            $st->execute([$entityId, $asOf, $asOf]);
+        } else {
+            $st = $pdo->prepare('SELECT * FROM claims WHERE entity_id = ? ORDER BY id ASC');
+            $st->execute([$entityId]);
+        }
+        return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
     public static function isPublicEnvelope(?string $status): bool
     {
         return in_array((string) $status, ['approved', 'needs_edit', 'stale'], true);
@@ -88,12 +110,12 @@ final class Resolver
     private static function latestApprovedClaims(PDO $pdo, string $entityId, ?string $asOf): array
     {
         if ($asOf !== null && $asOf !== '') {
-            $sql = 'SELECT * FROM claims WHERE entity_id = ? AND status = ? AND (
+            $sql = "SELECT * FROM claims WHERE entity_id = ? AND status IN ('approved','superseded') AND (
                 (approved_at IS NOT NULL AND approved_at <= ?)
                 OR (approved_at IS NULL AND created_at <= ?)
-            )';
+            )";
             $st = $pdo->prepare($sql);
-            $st->execute([$entityId, 'approved', $asOf, $asOf]);
+            $st->execute([$entityId, $asOf, $asOf]);
         } else {
             $st = $pdo->prepare(
                 'SELECT * FROM claims WHERE entity_id = ? AND status = ?'
