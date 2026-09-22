@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Claim Ledger Stage 8 contract: five-finding catalog + severity rules.
 
-Exit 0 on PASS, 1 on FAIL. PHP/WP editions are skipped until later PRs.
+Exit 0 on PASS, 1 on FAIL. PHP edition is skipped until a later PR.
 """
 
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -121,8 +122,85 @@ def check_php(_contract: dict) -> None:
     print("SKIP: php edition (later PR)")
 
 
-def check_wp(_contract: dict) -> None:
-    print("SKIP: wordpress edition (later PR)")
+def check_wp(contract: dict) -> None:
+    module = ROOT / contract["audit_modules"]["wordpress"]
+    if not module.is_file():
+        fail(f"missing wordpress audit module {module}")
+    text = module.read_text(encoding="utf-8")
+    for fid in contract["ids"]:
+        if f"'{fid}'" not in text:
+            fail(f"wordpress FINDING_IDS missing {fid}")
+    for status in contract["statuses"]:
+        if f"'{status}'" not in text:
+            fail(f"wordpress STATUSES missing {status}")
+    for sym in contract["forbidden_writer_symbols"]:
+        if sym in text:
+            fail(f"wordpress audit module mentions forbidden writer {sym}")
+
+    dash = ROOT / "wordpress-plugin/manifest-bkbs-converter/admin/views/dashboard.php"
+    dash_text = dash.read_text(encoding="utf-8")
+    if 'id="jsonld_wp_head"' not in dash_text:
+        fail("dashboard checkbox missing id=jsonld_wp_head")
+    pub = ROOT / "wordpress-plugin/manifest-bkbs-converter/includes/class-mbkbs-publisher.php"
+    pub_text = pub.read_text(encoding="utf-8")
+    if "jsonld.wp_head" not in pub_text:
+        fail("wordpress jsonld.wp_head missing from publisher")
+    if "maybe_print_jsonld" not in pub_text:
+        fail("maybe_print_jsonld must remain on publisher (not reimplemented in audit)")
+    admin = ROOT / "wordpress-plugin/manifest-bkbs-converter/admin/class-mbkbs-admin.php"
+    admin_text = admin.read_text(encoding="utf-8")
+    if "jsonld.wp_head" not in admin_text:
+        fail("wordpress jsonld.wp_head missing from admin settings")
+
+    php = [
+        "php",
+        "-r",
+        f"""
+        define('ABSPATH', sys_get_temp_dir() . '/');
+        require {json.dumps(str(module))};
+        $ids = MBKBS_Scan_Audit::FINDING_IDS;
+        if ($ids !== {json.dumps(contract["ids"])}) {{ fwrite(STDERR, 'ids'); exit(1); }}
+        $honest = json_encode(array('name'=>'Acme','url'=>'https://ex.com','knowledge'=>new stdClass()));
+        $stub = json_encode(array('name'=>'Acme','url'=>'https://ex.com','knowledge'=>new stdClass(),'protocol'=>'a2a'));
+        $base = array(
+            'base_url'=>'https://ex.com','site_id'=>'s1',
+            'pages_json_ld'=>array(array('https://ex.com/', array(array('@type'=>'Organization','name'=>'Acme')))),
+            'html_ok_count'=>1,
+            'robots'=>array('url'=>'https://ex.com/robots.txt','status'=>200,'body'=>"User-agent: *\\n",'error'=>null),
+            'llms_txt'=>array('url'=>'https://ex.com/llms.txt','status'=>200,'body'=>"# Title\\n",'error'=>null),
+            'agent_json'=>array('url'=>'https://ex.com/.well-known/agent.json','status'=>200,'body'=>$honest,'error'=>null),
+            'tdmrep'=>array('url'=>'https://ex.com/.well-known/tdmrep.json','status'=>404,'body'=>'','error'=>null),
+        );
+        $by = array();
+        foreach (MBKBS_Scan_Audit::evaluate_findings($base) as $f) {{ $by[$f['id']] = $f; }}
+        $rules = json_decode({json.dumps(json.dumps(contract["severity_rules"]))}, true);
+        foreach ($rules as $fid => $rule) {{
+            if (isset($rule['always']) && $by[$fid]['severity'] !== $rule['always']) {{ fwrite(STDERR, $fid); exit(1); }}
+        }}
+        if ($by['agent-json']['severity'] !== $rules['agent-json']['pass']) {{ fwrite(STDERR, 'agent pass'); exit(1); }}
+        $base['agent_json']['status'] = 404; $base['agent_json']['body'] = '';
+        $m = null;
+        foreach (MBKBS_Scan_Audit::evaluate_findings($base) as $f) {{ if ($f['id']==='agent-json') $m = $f; }}
+        if ($m['status'] !== 'fail' || $m['severity'] !== $rules['agent-json']['fail_missing']) {{ fwrite(STDERR, 'agent 404'); exit(1); }}
+        $base['agent_json']['status'] = 200; $base['agent_json']['body'] = $stub;
+        $s = null;
+        foreach (MBKBS_Scan_Audit::evaluate_findings($base) as $f) {{ if ($f['id']==='agent-json') $s = $f; }}
+        if ($s['status'] !== 'fail' || $s['severity'] !== $rules['agent-json']['fail_stub']) {{ fwrite(STDERR, 'agent stub'); exit(1); }}
+        if (!MBKBS_Scan_Audit::has_high_severity_fail(array($s))) {{ fwrite(STDERR, 'high fail'); exit(1); }}
+        $unk = MBKBS_Scan_Audit::unknown_findings('boom');
+        $u = null;
+        foreach ($unk as $f) {{ if ($f['id']==='agent-json') $u = $f; }}
+        if ($u['severity'] !== $rules['agent-json']['unknown'] || $u['status'] !== 'unknown') {{ fwrite(STDERR, 'agent unk'); exit(1); }}
+        echo 'ok';
+        """,
+    ]
+    proc = subprocess.run(php, cwd=str(ROOT), capture_output=True, text=True)
+    if proc.returncode != 0 or "ok" not in (proc.stdout or ""):
+        fail(
+            "wordpress evaluate_findings severity rules: "
+            + ((proc.stderr or proc.stdout or "").strip() or f"exit {proc.returncode}")
+        )
+    ok("wordpress catalog IDs, severity rules, jsonld.wp_head present")
 
 
 def main() -> int:

@@ -31,6 +31,12 @@ final class MBKBS_Database
         return $wpdb->prefix . 'mbkbs_claims';
     }
 
+    public static function scan_jobs_table(): string
+    {
+        global $wpdb;
+        return $wpdb->prefix . 'mbkbs_scan_jobs';
+    }
+
     /**
      * Run schema install/upgrade when option version is behind plugin constant.
      */
@@ -51,6 +57,7 @@ final class MBKBS_Database
         $entities = self::entities_table();
         $settings = self::settings_table();
         $claims = self::claims_table();
+        $scan_jobs = self::scan_jobs_table();
 
         $sql_sites = "CREATE TABLE {$sites} (
             id varchar(36) NOT NULL,
@@ -113,10 +120,26 @@ final class MBKBS_Database
             KEY idx_claims_supersedes (supersedes_id)
         ) {$charset};";
 
+        // dbDelta requires two spaces in PRIMARY KEY  (id) or the key is not applied on upgrade.
+        $sql_scan_jobs = "CREATE TABLE {$scan_jobs} (
+            id varchar(36) NOT NULL,
+            site_id varchar(36) NOT NULL,
+            status varchar(32) NOT NULL DEFAULT 'queued',
+            pages_fetched int NOT NULL DEFAULT 0,
+            entities_found int NOT NULL DEFAULT 0,
+            error longtext NULL,
+            stats_json longtext NULL,
+            created_at datetime NOT NULL,
+            finished_at datetime NULL,
+            PRIMARY KEY  (id),
+            KEY site_created (site_id, created_at)
+        ) {$charset};";
+
         dbDelta($sql_sites);
         dbDelta($sql_entities);
         dbDelta($sql_settings);
         dbDelta($sql_claims);
+        dbDelta($sql_scan_jobs);
         // Stage 6: envelope-only attribute columns when claims exist.
         $wpdb->query(
             "UPDATE {$entities} SET name = '', description = NULL, properties = '{}', relationships = '[]', evidence = '[]'

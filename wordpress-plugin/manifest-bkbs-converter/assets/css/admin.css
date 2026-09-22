@@ -22,6 +22,22 @@
 .mbkbs-pill-pending, .mbkbs-pill-needs_edit { background: #fcf0e3; color: #996800; }
 .mbkbs-pill-approved { background: #edfaef; color: #007017; }
 .mbkbs-pill-rejected { background: #fcebec; color: #b32d2e; }
+.mbkbs-pill-queued, .mbkbs-pill-running { background: #e7f5fe; color: #0a4b78; }
+.mbkbs-pill-completed { background: #edfaef; color: #007017; }
+.mbkbs-pill-completed-with-warnings { background: #fcf0e3; color: #996800; }
+.mbkbs-pill-failed { background: #fcebec; color: #b32d2e; }
+.mbkbs-pill-pass { background: #edfaef; color: #007017; }
+.mbkbs-pill-fail { background: #fcebec; color: #b32d2e; }
+.mbkbs-pill-unknown { background: #f0f0f1; color: #646970; }
+.mbkbs-pill-sev-high { background: #fcebec; color: #b32d2e; }
+.mbkbs-pill-sev-medium { background: #fcf0e3; color: #996800; }
+.mbkbs-pill-sev-info { background: #e7f5fe; color: #0a4b78; }
+ul.mbkbs-findings { list-style: none; padding: 0; margin: 0 0 12px; }
+.mbkbs-finding { padding: 10px 0; border-bottom: 1px solid #dcdcde; }
+.mbkbs-finding:last-child { border-bottom: none; }
+.mbkbs-finding-pass { border-left: 3px solid #00a32a; padding-left: 12px; }
+.mbkbs-finding-fail { border-left: 3px solid #d63638; padding-left: 12px; }
+.mbkbs-finding-unknown { border-left: 3px solid #8c8f94; padding-left: 12px; }
 .mbkbs-stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
 .mbkbs-stat {
   background: #f6f7f7;
