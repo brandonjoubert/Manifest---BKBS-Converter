@@ -21,6 +21,7 @@ final class Router
 
 match (true) {
             $route === 'home' && $method === 'GET' => $this->home(),
+            str_starts_with($route, 'scans/') && $method === 'GET' => $this->scanStatus($this->idFrom($route, 1)),
             $route === 'sites/create' && $method === 'POST' => $this->siteCreate(),
             str_starts_with($route, 'sites/') && str_ends_with($route, '/scan') && $method === 'POST' => $this->scan($this->idFrom($route, 1)),
             str_starts_with($route, 'sites/') && str_ends_with($route, '/publish') && $method === 'POST' => $this->publish($this->idFrom($route, 1)),
@@ -266,13 +267,43 @@ match (true) {
             foreach ($found as $item) {
                 $merged += $this->upsertEntity($id, $item) ? 1 : 0;
             }
+            try {
+                $pagesJsonLd = [];
+                foreach ($pages as $p) {
+                    $pagesJsonLd[] = [$p['url'], $p['json_ld'] ?? []];
+                }
+                $probes = ScanAudit::probeOrigin((string) $site['base_url'], null, [$crawler, 'request']);
+                $findings = ScanAudit::evaluateFindings([
+                    'base_url' => (string) $site['base_url'],
+                    'site_id' => $id,
+                    'pages_json_ld' => $pagesJsonLd,
+                    'html_ok_count' => count($pages),
+                    'robots' => $probes['robots'] ?? null,
+                    'llms_txt' => $probes['llms_txt'] ?? null,
+                    'agent_json' => $probes['agent_json'] ?? null,
+                    'tdmrep' => $probes['tdmrep'] ?? null,
+                ]);
+                $originStats = ScanAudit::probesAsStats($probes);
+            } catch (\Throwable $e) {
+                $findings = ScanAudit::unknownFindings($e->getMessage());
+                $originStats = [];
+            }
+            $status = ScanAudit::hasHighSeverityFail($findings) ? 'completed-with-warnings' : 'completed';
+            $stats = [
+                'crawl' => ['ok' => count($pages), 'max_pages' => (int) $site['max_pages']],
+                'heuristic_count' => count($found) - $llmCount,
+                'llm_count' => $llmCount,
+                'touched' => $merged,
+                'findings' => $findings,
+                'origin_probes' => $originStats,
+            ];
             $db->pdo()->prepare(
                 'UPDATE scan_jobs SET status=?, pages_fetched=?, entities_found=?, stats_json=?, finished_at=? WHERE id=?'
             )->execute([
-                'completed',
+                $status,
                 count($pages),
                 $merged,
-                json_encode(['pages' => count($pages), 'heuristic' => count($found) - $llmCount, 'llm' => $llmCount]),
+                json_encode($stats, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 gmdate('c'),
                 $jobId,
             ]);
@@ -283,7 +314,36 @@ match (true) {
             )->execute(['failed', $e->getMessage(), gmdate('c'), $jobId]);
             flash_set('err', 'Scan failed: ' . $e->getMessage());
         }
-        redirect(url('sites/' . $id));
+        redirect(url('scans/' . $jobId));
+    }
+
+    private function scanStatus(string $jobId): void
+    {
+        $db = bkbs_db();
+        $st = $db->pdo()->prepare('SELECT * FROM scan_jobs WHERE id = ?');
+        $st->execute([$jobId]);
+        $job = $st->fetch();
+        if (!$job) {
+            flash_set('err', 'Scan not found');
+            redirect(url('home'));
+        }
+        $site = $this->requireSite((string) $job['site_id']);
+        $stats = [];
+        if (!empty($job['stats_json'])) {
+            $decoded = json_decode((string) $job['stats_json'], true);
+            $stats = is_array($decoded) ? $decoded : [];
+        }
+        $findings = $stats['findings'] ?? [];
+        if (!is_array($findings)) {
+            $findings = [];
+        }
+        render('scan', [
+            'job' => $job,
+            'site' => $site,
+            'stats' => $stats,
+            'findings' => $findings,
+            'has_llm' => LlmClient::fromSettings($db) !== null,
+        ]);
     }
 
     /** @param array<string,mixed> $item */

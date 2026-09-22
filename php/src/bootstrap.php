@@ -19,6 +19,7 @@ spl_autoload_register(function (string $class): void {
         'Bkbs\\Publisher' => __DIR__ . '/Publisher.php',
         'Bkbs\\Resolver' => __DIR__ . '/Resolver.php',
         'Bkbs\\Router' => __DIR__ . '/Router.php',
+        'Bkbs\\ScanAudit' => __DIR__ . '/ScanAudit.php',
     ];
     if (isset($map[$class])) {
         require_once $map[$class];

@@ -109,7 +109,7 @@
     <tbody>
     <?php foreach ($jobs as $j): ?>
       <tr>
-        <td><span class="pill pill-<?= h($j['status']) ?>"><?= h($j['status']) ?></span></td>
+        <td><a href="<?= h(url('scans/' . $j['id'])) ?>"><span class="pill pill-<?= h($j['status']) ?>"><?= h($j['status']) ?></span></a></td>
         <td><?= (int) $j['pages_fetched'] ?></td>
         <td><?= (int) $j['entities_found'] ?></td>
         <td class="muted"><?= h($j['created_at']) ?></td>
