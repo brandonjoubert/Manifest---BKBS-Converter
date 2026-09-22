@@ -41,7 +41,7 @@
       "table_suffix": "mbkbs_claims",
       "resolver_class": "MBKBS_Resolver",
       "resolver_method": "resolve_entity",
-      "db_version": "4",
+      "db_version": "5",
       "stub_returns": null,
       "source_files": [
         "wordpress-plugin/manifest-bkbs-converter/includes/class-mbkbs-database.php",
