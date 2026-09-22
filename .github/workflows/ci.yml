@@ -67,6 +67,18 @@ jobs:
           XAI_API_KEY: ""
           LLM_API_KEY: ""
 
+      - name: Set up PHP (Stage 8 contract, all editions)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+
+      - name: Claim Ledger Stage 8 findings contract
+        run: python scripts/stage8_contract_check.py
+        env:
+          XAI_API_KEY: ""
+          LLM_API_KEY: ""
+
   php-syntax:
     name: PHP syntax check
     runs-on: ubuntu-latest
@@ -107,6 +119,12 @@ jobs:
       - name: Claim Ledger Stage 7 query API (PHP)
         run: php php/scripts/verify_stage7.php
 
+      - name: Claim Ledger Stage 8 origin audit (PHP)
+        run: php php/scripts/verify_stage8.php
+
+      - name: Claim Ledger Stage 8 origin audit (WP extract)
+        run: php php/scripts/verify_stage8_wp.php
+
       - name: PHP Resolver + backfill lint (Stage 2)
         run: |
           php -l php/src/Resolver.php
@@ -122,7 +140,13 @@ jobs:
           php -l php/scripts/verify_stage4c.php
           php -l php/scripts/verify_stage6.php
           php -l php/scripts/verify_stage7.php
+          php -l php/src/ScanAudit.php
+          php -l php/scripts/verify_stage8.php
+          php -l php/scripts/verify_stage8_wp.php
+          php -l php/templates/scan.php
           php -l wordpress-plugin/manifest-bkbs-converter/includes/class-mbkbs-query-api.php
+          php -l wordpress-plugin/manifest-bkbs-converter/includes/class-mbkbs-scan-audit.php
+          php -l wordpress-plugin/manifest-bkbs-converter/admin/views/scan.php
 
   package-php-zip:
     name: PHP zip present
@@ -137,3 +161,16 @@ jobs:
         run: |
           test -f installers/php-host/bkbs-php-edition.zip
           unzip -t installers/php-host/bkbs-php-edition.zip
+
+  package-wp-zip:
+    name: WP zip present
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Verify WordPress plugin zip exists
+        run: |
+          test -f wordpress-plugin/manifest-bkbs-converter.zip
+          unzip -t wordpress-plugin/manifest-bkbs-converter.zip

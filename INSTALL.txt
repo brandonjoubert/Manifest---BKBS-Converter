@@ -107,6 +107,7 @@ SMOKE / BASELINE (monorepo root, after pip install)
   python scripts/verify_exports.py --edition all
   python scripts/stage1_contract_check.py
   python scripts/verify_exports_via_resolve.py --edition all
+  python scripts/stage8_contract_check.py   # Stage 8 origin audit (INSTALL.md §17; TDMRep detect-only)
 
 Python installers run the Python edition of these automatically.
 PHP CLI checks need the php binary; Stage 2 PHP needs pdo_sqlite.

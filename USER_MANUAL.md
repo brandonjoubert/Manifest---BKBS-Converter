@@ -200,7 +200,7 @@ The app will:
 4. Propose BKBS entities (heuristic ± AI)  
 5. Save them as **Pending** for your review  
 
-The scan status page refreshes automatically. When status is **completed**, click **Review entities**.
+The scan status page refreshes automatically. When status is **completed** or **completed-with-warnings**, click **Review entities**. A first scan before Publish live is **expected** to warn (no on-page JSON-LD yet, `/llms.txt` not published). That is not a failed crawl.
 
 If status is **failed**, read the error message (common causes: site offline, blocked crawl, invalid URL).
 
@@ -337,9 +337,14 @@ When you add services, change contact details, or publish new pages:
 
 ### 7.3 Scan status
 
-- Live status: queued → running → completed / failed  
+- Live status: queued → running → **completed** / **completed-with-warnings** / **failed**  
+- **Findings** card **above** raw stats (origin JSON-LD, AIPREF, `/llms.txt`, `agent.json`, TDMRep)  
 - Pages fetched and how many entities were touched  
-- Stats blob for debugging  
+- Stats blob under Findings for debugging  
+
+**First scan before Publish live** is expected `completed-with-warnings` (`jsonld-on-page` and `llms-txt` are both high). Those checks do **not** fail the crawl — use the CTAs (**Publish live** / copy JSON-LD snippet). WordPress: Dashboard → Machine layers → **Print JSON-LD in `wp_head` on homepage** is **off by default**.
+
+BKBS does **not** generate TDMRep (`/.well-known/tdmrep.json`). The scan may detect that well-known file if you added it yourself; absence is not a defect. See [INSTALL.md §17.2](./INSTALL.md#172-tdm-reservation-protocol-tdmrep).  
 
 ### 7.4 Entity review
 
@@ -450,6 +455,7 @@ Data is stored in the app’s local database (`data/` folder) on the machine run
 |---------|-------------|
 | “No XAI_API_KEY” | Expected without a key. Add key to `.env` and restart for AI. |
 | Scan **failed** | Check URL is reachable; try in a browser; for localhost set `BKBS_ALLOW_PRIVATE_URLS=1`. |
+| Scan **completed-with-warnings** | Expected on first scan before Publish live (no JSON-LD / `/llms.txt` yet). Review Findings above stats. Not a failed crawl. |
 | Zero or few entities | Site may be image-heavy or JS-only; add content via Manual entry; enable AI; check max pages. |
 | Export ZIP almost empty | Approve entities first (production export ignores pending). |
 | Rescan overwrote nothing but marked needs_edit | That is intentional for previously approved items that changed — re-verify and approve again. |
@@ -478,7 +484,7 @@ Data is stored in the app’s local database (`data/` folder) on the machine run
 - [ ] Start the app and open the dashboard  
 - [ ] (Optional) Configure `XAI_API_KEY`  
 - [ ] Create a **Site** with the correct base URL  
-- [ ] Run **Scan** and wait for **completed**  
+- [ ] Run **Scan** and wait for **completed** or **completed-with-warnings** (first scan often warns until you publish)  
 - [ ] **Approve** identity, top services/capabilities, contact facts  
 - [ ] **Reject** fluff and errors  
 - [ ] **Manual entry** for missing operational facts  

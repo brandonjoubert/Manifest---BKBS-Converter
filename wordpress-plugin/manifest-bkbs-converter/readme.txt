@@ -33,6 +33,10 @@ It is separate from the Python edition and the generic PHP shared-hosting editio
 
 Business websites were built for people. AI agents need structured, trustworthy facts. This plugin helps you publish a dual-purpose presence: human HTML + machine knowledge you control.
 
+= Scan findings =
+
+After each scan the dashboard lists origin-audit findings (JSON-LD on page, AIPREF, /llms.txt, agent.json, TDMRep) above raw stats. A first scan before Publish is expected to complete with warnings. The optional "Print JSON-LD in wp_head on homepage" checkbox stays **off by default**. This plugin does not generate TDMRep files.
+
 == Installation ==
 
 1. Upload the `manifest-bkbs-converter` folder to `/wp-content/plugins/`
@@ -56,6 +60,11 @@ Via WordPress rewrite rules after you click Publish (and optionally as static fi
 No. It only adds admin screens and public machine-layer endpoints/files.
 
 == Changelog ==
+
+= 0.1.x =
+* Scan origin-audit findings on the dashboard (Stage 8)
+* Existing "Print JSON-LD in wp_head on homepage" remains default off
+* TDMRep is detect-only; the plugin does not generate it
 
 = 0.1.0 =
 * Initial WordPress plugin edition

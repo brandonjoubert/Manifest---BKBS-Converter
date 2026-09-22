@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claim Ledger Stage 8** (crawler origin audit, all three editions)
+  - After merge, scan jobs persist five findings (`jsonld-on-page`, `aipref-robots`, `llms-txt`, `agent-json`, `tdmrep`) and render them **above** raw stats
+  - Job status `completed-with-warnings` when crawl succeeded but a high-severity origin check failed (missing JSON-LD or `/llms.txt`; dishonest `agent.json` stub). First unpublished scan is expected to warn
+  - WordPress: `mbkbs_scan_jobs` + dashboard last-scan card; existing `wp_head` JSON-LD inject remains **default off**
+  - TDMRep is detect-only (`/.well-known/tdmrep.json`); never generated or published
+  - Tests: `tests/test_stage8.py`, `php/scripts/verify_stage8.php`, `php/scripts/verify_stage8_wp.php`, `scripts/stage8_contract_check.py`
 - **Claim Ledger Stage 7** (authenticated query API, all three editions)
   - `/api/*` requires `Authorization: Bearer` or `X-API-Key` (Python). PHP JSON `api/entities/{id}` and `/claims` use the same headers. WordPress REST `/wp-json/mbkbs/v1/entities/{id}` accepts an admin session or the bearer token.
   - `GET .../entities/{id}?as_of=` resolves the approved snapshot using `approved_at` (set on every approve; legacy rows backfilled from `created_at`)

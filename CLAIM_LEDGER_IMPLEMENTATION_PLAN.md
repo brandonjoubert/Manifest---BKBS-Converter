@@ -5,7 +5,7 @@
 
 **Generated:** 2026-07-28  
 **Updated:** 2026-09-15  
-**Status:** Stage 0–7 complete (writers, adapters, review UI, public-web artifacts, envelope-only attributes, authenticated query API). Next: Stage 8 crawler audit. /autoplan B2 applied 2026-08-18.
+**Status:** Stage 0–8 complete (writers, adapters, review UI, public-web artifacts, envelope-only attributes, authenticated query API, crawler origin audit). Next: Stage 9 capability layer. /autoplan B2 applied 2026-08-18.
 
 ---
 
@@ -329,8 +329,8 @@ CREATE INDEX idx_claims_supersedes ON claims(supersedes_id);
 - 8.4 documents the WP `wp_head` checkbox from 4c
 
 ### EXIT
-- [ ] Findings render in product, not only INSTALL
-- [ ] No second AIPREF implementation
+- [x] Findings render in product, not only INSTALL — Python `scan_status.html`, PHP `templates/scan.php`, WP dashboard last-scan card
+- [x] No second AIPREF implementation — audit detects origin robots only; 4c toggles remain the writer
 
 ---
 
@@ -429,6 +429,11 @@ python scripts/verify_exports.py --edition all
 pytest tests/test_stage7.py -q
 php php/scripts/verify_stage7.php
 
+# Stage 8: origin findings catalog (all three editions)
+python scripts/stage8_contract_check.py
+php php/scripts/verify_stage8.php
+php php/scripts/verify_stage8_wp.php
+
 # Any stage: smoke
 curl -s http://127.0.0.1:8765/health
 ```
@@ -445,14 +450,15 @@ curl -s http://127.0.0.1:8765/health
 | Publish | `publish_live.py` / `app/exports/` | `php/src/Publisher.php` + `Exports/` | `MBKBS_Publisher` + `exports/` |
 | Verify / UI | `app/api/entities.py`, templates | `Router.php` + templates | `class-mbkbs-admin.php` + views |
 | Query API | `api_auth.py` + `GET /api/entities/{id}` | `api/entities/{id}` | `MBKBS_Query_API` REST |
+| Scan audit | `scan_audit.py` | `ScanAudit.php` | `MBKBS_Scan_Audit` |
 
 ---
 
 ## Next Action
 
-**Stages 0–7 complete** (writers, public-set, adapters, claim review UI, public-web artifacts, envelope-only attributes, authenticated query API).  
+**Stages 0–8 complete** (writers, public-set, adapters, claim review UI, public-web artifacts, envelope-only attributes, authenticated query API, crawler origin audit).  
 
-Next: **Stage 8** crawler audit. Stage 9 still gated.
+Next: **Stage 9** capability layer (MCP / A2A / NLWeb). Still gated.
 
 ---
 

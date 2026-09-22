@@ -27,6 +27,7 @@ Plain-text card: [INSTALL.txt](./INSTALL.txt).
 14. [Claim Ledger Stage 2 — one-time backfill](#14-claim-ledger-stage-2--one-time-backfill)  
 15. [Quick reference](#15-quick-reference)  
 16. [Authenticated query API](#16-authenticated-query-api)  
+17. [Machine-layer audit (Stage 8)](#17-machine-layer-audit-stage-8)  
 
 ---
 
@@ -657,7 +658,7 @@ Without an API key, scans only use **heuristics** (fewer, thinner entities).
 
 ### Step 4 — Scan
 
-Click **Scan** / **Scan website**. Wait until status is **completed**.
+Click **Scan** / **Scan website**. Wait until status is **completed** or **completed-with-warnings**. A first scan before you publish `/llms.txt` is **expected** to warn (missing on-page JSON-LD and `/llms.txt`). That is not a crawl failure — see [§17](#17-machine-layer-audit-stage-8).
 
 ### Step 5 — Review entities
 
@@ -704,7 +705,7 @@ When publish succeeds, the web root receives files such as:
 
 `schema/organization.jsonld` uses schema.org `@type: LocalBusiness` (a subtype of Organization). Python, PHP, and WordPress editions all emit the same type.
 
-On-page JSON-LD: copy `schema/jsonld-snippet.html` from the ZIP or the **Machine layers** card (the JSON is script-safe: `<` is `\u003c`). The WordPress edition can print that snippet in `wp_head` on the homepage — **off by default**. AIPREF / Content-Usage lines are also off until you tick the three site toggles; the managed robots block always includes `# END BKBS`.
+On-page JSON-LD: copy `schema/jsonld-snippet.html` from the ZIP or the **Machine layers** card (the JSON is script-safe: `<` is `\u003c`). The WordPress edition can print that snippet in `wp_head` on the homepage — **off by default** (Stage 8 documents this existing checkbox; see [§17](#17-machine-layer-audit-stage-8)). AIPREF / Content-Usage lines are also off until you tick the three site toggles; the managed robots block always includes `# END BKBS`. After each scan, Stage 8 **detects** origin JSON-LD, AIPREF, `/llms.txt`, `agent.json`, and `/.well-known/tdmrep.json` — it does **not** auto-publish TDMRep ([§17.2](#172-tdm-reservation-protocol-tdmrep)).
 
 ### Setting the web root correctly
 
@@ -757,6 +758,7 @@ Whenever the website content changes:
 | PHP install: PDO SQLite NO | Extension disabled | Enable `pdo_sqlite` in Select PHP Version |
 | PHP install: cannot write config | Folder permissions | Temporarily allow write on app folder; ensure `data/` writable |
 | PHP zip extract: no `install.php` | Wrong folder level | Extract so `install.php` is at the app root (`bkbs/`), not nested an extra level |
+| Scan **completed-with-warnings** | First scan before Publish live (no JSON-LD / `/llms.txt` yet) | Expected. Review Findings above stats; not a failed crawl. See [§17](#17-machine-layer-audit-stage-8) |
 | Scan returns few entities | No LLM key | Configure Settings → API key → rescan |
 | Publish: no web root | Path not set | Set site web root / default publish root |
 | Publish: not writable | Permissions | Fix ownership of `public_html` for the app user |
@@ -781,6 +783,8 @@ Whenever the website content changes:
 | Export ZIP download | Yes | Not primary (publish live instead) | No (publish live) |
 | Full entity JSON editor | Yes | Basic | Form editor |
 | Background long scans | Async worker | Runs in request (use moderate max pages) | Request-scoped |
+| Origin audit findings (Stage 8) | Scan page, above stats | Scan page, above stats | Dashboard last-scan card |
+| JSON-LD `wp_head` inject | Copy snippet into theme `<head>` | Copy snippet into theme `<head>` | Checkbox, **default off** |
 | Claim backfill (Stage 2) | CLI | CLI | Admin Tools / WP-CLI |
 
 All products produce the **same style of public machine files** for AI agents (`llms.txt`, `graph.json`, schema.org, …).
@@ -798,6 +802,7 @@ Run these from a **clone root** after `pip install -r requirements.txt` (Python 
 | **Stage 1** | `python scripts/stage1_contract_check.py` | Claims schema + resolver modules in **all three** editions |
 | **Stage 2** | `python scripts/verify_exports_via_resolve.py --edition all` | Backfill + real resolve match goldens |
 | **Stage 7** | `pytest tests/test_stage7.py -q` · `php php/scripts/verify_stage7.php` | Auth query API; `as_of` uses `approved_at` |
+| **Stage 8** | `python scripts/stage8_contract_check.py` · `php php/scripts/verify_stage8.php` | Origin findings catalog identical in all three editions; TDMRep detect-only |
 
 ```bash
 pytest -q
@@ -805,6 +810,8 @@ python scripts/verify_exports.py --edition all
 python scripts/stage1_contract_check.py
 python scripts/verify_exports_via_resolve.py --edition all
 php php/scripts/verify_stage7.php
+python scripts/stage8_contract_check.py
+php php/scripts/verify_stage8.php
 ```
 
 **PHP notes:** Stage 0/2 PHP steps need the `php` CLI. Stage 2 PHP via-resolve needs **`pdo_sqlite`**. Without them, local checks may skip PHP portions; CI and the PHP harness image still enforce them.
@@ -908,7 +915,7 @@ wp-admin → Plugins → Upload → Activate → Manifest BKBS
 1. Open admin URL  
 2. Settings → API key → Test  
 3. Add site + web root (Python/PHP)  
-4. Scan  
+4. Scan (status **completed** or **completed-with-warnings** is success; first scan often warns)  
 5. Approve entities  
 6. Publish live  
 7. Open `https://yourdomain.com/llms.txt`  
@@ -931,6 +938,52 @@ Stage 7 exposes **approved** entity snapshots and the claim ledger over JSON. It
 `as_of` is an ISO-8601 timestamp. Resolve uses **`approved_at`** on approved claims (set on every approve). Unauthenticated `/api/entities` is **401**. Published origin files (`/llms.txt`, `graph.json`, JSON-LD) stay **anonymous HTTP**. No MCP is required.
 
 Python HTML UI (forms) does not need the token. Export ZIP download for operators is `/exports/{id}/download`.
+
+---
+
+## 17. Machine-layer audit (Stage 8)
+
+After every **successful** crawl (Python, PHP Host, and WordPress), the converter runs an **origin audit**. It does **not** write origin files, inject HTML, or emit AIPREF / TDMRep. It probes the live site and stores five findings on the scan job.
+
+Findings render **in the product UI above raw stats** (Python/PHP scan page; WordPress dashboard last-scan card). Old jobs without `findings` hide the card.
+
+### Scan status
+
+`queued` → `running` → `completed` / `completed-with-warnings` / `failed`
+
+| Outcome | Meaning |
+|---------|---------|
+| **failed** | Crawl, extract, or merge error |
+| **completed-with-warnings** | Crawl succeeded, but a **high-severity** origin check failed |
+| **completed** | Crawl succeeded and no high-severity finding failed (probe errors stay `completed` with `unknown` findings) |
+
+High-severity fails: origin HTML has no JSON-LD (`jsonld-on-page`); origin `/llms.txt` is not fetchable; origin `/.well-known/agent.json` has a stub `protocol` / `endpoint` / `capabilities`. Missing `agent.json` (404) is **medium** and does not flip the job. AIPREF and TDMRep are **info** only.
+
+**First scan before Publish live** is **expected** `completed-with-warnings` (`jsonld-on-page` + `llms-txt`). That is success for the scan — use the finding CTAs (**Publish live** or **Copy JSON-LD snippet**). These checks do not fail the crawl.
+
+### 17.1 What is checked (8.4 JSON-LD inject)
+
+Always five findings, in this order: `jsonld-on-page`, `aipref-robots`, `llms-txt`, `agent-json`, `tdmrep`.
+
+| Finding | What it asks | Operator action |
+|---------|--------------|-----------------|
+| JSON-LD on page | Does origin HTML contain a parseable `<script type="application/ld+json">`? (Yoast/theme/BKBS all count) | Python/PHP: copy the snippet from **Machine layers** into the theme `<head>` (those editions cannot inject). WordPress: Dashboard → Machine layers → **Print JSON-LD in `wp_head` on homepage** — **default off**. After enabling, **Rescan** (cache plugins may delay). |
+| AIPREF / robots | Does origin `robots.txt` contain `Content-Usage` or `AIPREF`? | Detect only. Three site toggles stay **off** until you opt in. Absence is not a defect. |
+| `/llms.txt` | Is the published knowledge file fetchable (not an HTML 404 page)? | **Publish live** |
+| `agent.json` | Honest knowledge index (`name`, `url`, `knowledge`; no stub protocol) | Publish / republish. Stage 9 agent-card is out of scope. |
+| TDMRep | Is `/.well-known/tdmrep.json` present? | Document-only — see [§17.2](#172-tdm-reservation-protocol-tdmrep) |
+
+The WordPress `wp_head` checkbox is the Stage 4c control. Stage 8 only **documents** it and can hash-jump to `#jsonld_wp_head`. Do not add a second inject path.
+
+### 17.2 TDM Reservation Protocol (TDMRep)
+
+IETF TDMRep lets a site signal text-and-data-mining reservation via `/.well-known/tdmrep.json` and/or a `TDM-Reservation` HTTP header.
+
+BKBS **detects only the well-known file** (crawlers do not store response headers). It **does not generate or publish** `tdmrep.json` or `TDM-Reservation` files. Operators who need an opt-out add those files in the CMS/host, not through this app.
+
+During scan, an existing `/.well-known/tdmrep.json` is **pass**; absence is **unknown** (not a fail). Detection never creates the file. Do not confuse TDMRep with AIPREF `Content-Usage` (the 4c opt-in robots line).
+
+There is no TDMRep exporter under `app/exports/`, `php/src/Exports/`, or WordPress `includes/exports/`.
 
 ---
 

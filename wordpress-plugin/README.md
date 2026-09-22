@@ -59,6 +59,16 @@ Only **approved** entities are published.
 
 ---
 
+## Scan findings (Stage 8)
+
+After **Scan**, the dashboard shows **Last scan findings** **above** raw stats (per site). Status may be `completed-with-warnings` on a first scan (no on-page JSON-LD, `/llms.txt` not published yet). That is **success** — review findings, then Publish live. Crawl errors stay `failed`.
+
+**Print JSON-LD in `wp_head` on homepage** (Dashboard → Machine layers) is **off by default**. Enable it, then **Rescan** to confirm `jsonld-on-page` passes. Cache plugins may delay.
+
+This plugin does **not** generate TDMRep (`/.well-known/tdmrep.json`). The scan only detects that well-known file if you added it yourself; absence is not a defect. See [INSTALL.md §17.2](../INSTALL.md#172-tdm-reservation-protocol-tdmrep).
+
+---
+
 ## Claim ledger (Stage 1–2) — optional
 
 After activation the plugin creates `{prefix}mbkbs_claims` (DB version **2**).
@@ -93,6 +103,8 @@ wp mbkbs backfill-claims --update
 
 - Scan this site or additional URLs  
 - Heuristic + optional OpenAI-compatible LLM extraction  
+- Origin audit findings on the dashboard (Stage 8); first unpublished scan may be `completed-with-warnings`  
+- Optional **Print JSON-LD in `wp_head` on homepage** — **default off**  
 - Entity list with **Edit before approve** / Save & approve  
 - Manual entity entry  
 - Publish agent layers via rewrites + optional static file write  
@@ -116,6 +128,7 @@ Public endpoints after publish (examples):
 | Tables missing | Deactivate/reactivate or ensure `MBKBS_DB_VERSION` upgrade ran |
 | Publish 404 | Permalinks → Save; confirm rewrite rules; or enable “write static files” |
 | Few entities from scan | Add LLM key under Settings → rescan |
+| Scan completed with warnings | Expected before Publish live / JSON-LD inject. Review Last scan findings. Not a failed crawl. |
 | Backfill inserted 0 | Need at least one **approved** entity first |
 
 Monorepo-wide install and quality gates: **[INSTALL.md](../INSTALL.md)** · **[README.md](../README.md)** · **[test-fixtures/README.md](../test-fixtures/README.md)**
