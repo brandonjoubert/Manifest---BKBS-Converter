@@ -68,7 +68,7 @@ class SiteOut(BaseModel):
 class ScanJobOut(BaseModel):
     id: str
     site_id: str
-    status: str
+    status: str  # queued|running|completed|completed-with-warnings|failed
     started_at: datetime | None
     finished_at: datetime | None
     pages_fetched: int

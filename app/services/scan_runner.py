@@ -12,6 +12,13 @@ from app.services.crawler import crawl_site
 from app.services.extractor_heuristic import extract_heuristic
 from app.services.extractor_llm import extract_with_llm
 from app.services.merger import apply_extracted, resolve_relationship_targets
+from app.services.scan_audit import (
+    AuditInput,
+    evaluate_findings,
+    has_high_severity_fail,
+    probe_origin,
+    unknown_findings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +42,12 @@ def run_scan_job(job_id: str) -> None:
             db.commit()
             return
 
-        # Detect rescan: prior completed jobs exist
+        # Detect rescan: prior successful jobs exist (warnings still count)
         prior = (
             db.query(ScanJob)
             .filter(
                 ScanJob.site_id == site.id,
-                ScanJob.status == "completed",
+                ScanJob.status.in_(["completed", "completed-with-warnings"]),
                 ScanJob.id != job.id,
             )
             .count()
@@ -107,14 +114,43 @@ def run_scan_job(job_id: str) -> None:
         resolve_relationship_targets(db, site.id)
 
         job.entities_found = stats.get("created", 0) + stats.get("updated", 0)
+
+        pages_json_ld = [(p.url, p.json_ld or []) for p in crawl.pages]
+        try:
+            probes = probe_origin(site.base_url, robots_raw=crawl.robots_raw)
+            findings = evaluate_findings(
+                AuditInput(
+                    base_url=site.base_url,
+                    site_id=site.id,
+                    pages_json_ld=pages_json_ld,
+                    html_ok_count=len(crawl.pages),
+                    robots=probes.robots,
+                    llms_txt=probes.llms_txt,
+                    agent_json=probes.agent_json,
+                    tdmrep=probes.tdmrep,
+                    edition="python",
+                )
+            )
+            origin_stats = probes.as_stats()
+        except Exception as exc:
+            logger.exception("Scan audit failed for %s", job_id)
+            findings = unknown_findings(reason=str(exc)[:200])
+            origin_stats = {}
+
         job.stats_json = {
             "crawl": crawl.stats,
             "merge": stats,
             "heuristic_count": len(heuristic),
             "llm_count": len(llm_entities),
             "is_rescan": is_rescan,
+            "findings": findings,
+            "origin_probes": origin_stats,
         }
-        job.status = "completed"
+        job.status = (
+            "completed-with-warnings"
+            if has_high_severity_fail(findings)
+            else "completed"
+        )
         job.finished_at = utcnow()
         db.commit()
         logger.info("Scan job %s completed: %s", job_id, job.stats_json)

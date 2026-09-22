@@ -206,7 +206,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .pill-stale { background: rgba(136, 153, 170, 0.2); color: var(--stale); }
 .pill-queued, .pill-running { background: rgba(59, 158, 255, 0.15); color: var(--accent); }
 .pill-completed { background: rgba(61, 214, 140, 0.15); color: var(--success); }
+.pill-completed-with-warnings { background: rgba(245, 165, 36, 0.15); color: var(--warning); }
 .pill-failed { background: rgba(243, 18, 96, 0.15); color: var(--danger); }
+.pill-pass { background: rgba(61, 214, 140, 0.15); color: var(--success); }
+.pill-fail { background: rgba(243, 18, 96, 0.15); color: var(--danger); }
+.pill-unknown { background: rgba(136, 153, 170, 0.2); color: var(--stale); }
+.pill-sev-high { background: rgba(243, 18, 96, 0.15); color: var(--danger); }
+.pill-sev-medium { background: rgba(245, 165, 36, 0.15); color: var(--warning); }
+.pill-sev-info { background: rgba(59, 158, 255, 0.15); color: var(--accent); }
 
 /* Alerts */
 .alert {
@@ -218,6 +225,13 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .alert-ok { background: rgba(61, 214, 140, 0.12); border: 1px solid rgba(61, 214, 140, 0.35); color: var(--success); }
 .alert-err { background: rgba(243, 18, 96, 0.12); border: 1px solid rgba(243, 18, 96, 0.35); color: var(--danger); }
 .alert-warn { background: rgba(245, 165, 36, 0.12); border: 1px solid rgba(245, 165, 36, 0.35); color: var(--warning); }
+
+ul.findings { list-style: none; padding: 0; margin: 0; }
+.finding { padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
+.finding:last-child { border-bottom: none; }
+.finding-pass { border-left: 3px solid var(--success); padding-left: 0.75rem; }
+.finding-fail { border-left: 3px solid var(--danger); padding-left: 0.75rem; }
+.finding-unknown { border-left: 3px solid var(--stale); padding-left: 0.75rem; }
 
 /* Stats */
 .stats {

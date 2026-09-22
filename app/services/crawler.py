@@ -322,8 +322,9 @@ async def crawl_site(
                 soup = BeautifulSoup(html, "lxml")
                 meta = extract_meta(soup)
                 title = meta.get("title")
-                text = html_to_text(soup, settings.page_text_limit)
+                # JSON-LD is in <script> tags that text extraction removes.
                 json_ld = extract_json_ld(soup)
+                text = html_to_text(soup, settings.page_text_limit)
                 links = extract_links(soup, url)
                 pages.append(
                     CrawledPage(

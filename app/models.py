@@ -74,7 +74,7 @@ class ScanJob(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"), index=True)
-    status: Mapped[str] = mapped_column(String(32), default="queued")  # queued|running|completed|failed
+    status: Mapped[str] = mapped_column(String(32), default="queued")  # queued|running|completed|completed-with-warnings|failed
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     pages_fetched: Mapped[int] = mapped_column(Integer, default=0)

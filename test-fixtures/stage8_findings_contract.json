@@ -1,0 +1,24 @@
+{
+  "stage": "8",
+  "description": "Five-finding origin audit catalog: IDs, statuses, per-id severity rules, no origin writers",
+  "ids": ["jsonld-on-page", "aipref-robots", "llms-txt", "agent-json", "tdmrep"],
+  "statuses": ["pass", "fail", "unknown"],
+  "severity_rules": {
+    "jsonld-on-page": { "always": "high" },
+    "llms-txt": { "always": "high" },
+    "aipref-robots": { "always": "info" },
+    "tdmrep": { "always": "info" },
+    "agent-json": {
+      "pass": "info",
+      "unknown": "info",
+      "fail_missing": "medium",
+      "fail_stub": "high"
+    }
+  },
+  "forbidden_writer_symbols": ["merge_robots", "Publisher", "maybe_print_jsonld"],
+  "audit_modules": {
+    "python": "app/services/scan_audit.py",
+    "php": "php/src/ScanAudit.php",
+    "wordpress": "wordpress-plugin/manifest-bkbs-converter/includes/class-mbkbs-scan-audit.php"
+  }
+}
