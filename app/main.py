@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.api import entities as entities_api
 from app.api import exports as exports_api
 from app.api import scans as scans_api
+from app.api import capability as capability_api
 from app.api import settings as settings_api
 from app.api import sites as sites_api
 from app.api.entities import parse_properties_field
@@ -85,6 +86,7 @@ app.include_router(scans_api.router)
 app.include_router(entities_api.router)
 app.include_router(exports_api.router)
 app.include_router(settings_api.router)
+app.include_router(capability_api.router)
 
 
 @app.on_event("startup")
@@ -238,6 +240,7 @@ def ui_site_settings(
     aipref_search: str | None = Form(None),
     aipref_ai_input: str | None = Form(None),
     aipref_train_ai: str | None = Form(None),
+    capability_enabled: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     from urllib.parse import quote
@@ -257,6 +260,7 @@ def ui_site_settings(
     site.aipref_search = aipref_search is not None
     site.aipref_ai_input = aipref_ai_input is not None
     site.aipref_train_ai = aipref_train_ai is not None
+    site.capability_enabled = capability_enabled is not None
     db.commit()
     return RedirectResponse(
         f"/sites/{site_id}?msg={quote('Site settings saved')}",

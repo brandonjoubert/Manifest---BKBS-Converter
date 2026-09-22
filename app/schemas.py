@@ -20,6 +20,7 @@ class SiteCreate(BaseModel):
     aipref_search: bool = False
     aipref_ai_input: bool = False
     aipref_train_ai: bool = False
+    capability_enabled: bool = False
 
     @field_validator("base_url")
     @classmethod
@@ -41,6 +42,7 @@ class SiteUpdate(BaseModel):
     aipref_search: bool | None = None
     aipref_ai_input: bool | None = None
     aipref_train_ai: bool | None = None
+    capability_enabled: bool | None = None
 
 
 class SiteOut(BaseModel):
@@ -55,6 +57,7 @@ class SiteOut(BaseModel):
     aipref_search: bool = False
     aipref_ai_input: bool = False
     aipref_train_ai: bool = False
+    capability_enabled: bool = False
     created_at: datetime
     updated_at: datetime
     pending_count: int = 0

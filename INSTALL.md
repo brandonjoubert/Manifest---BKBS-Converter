@@ -28,6 +28,7 @@ Plain-text card: [INSTALL.txt](./INSTALL.txt).
 15. [Quick reference](#15-quick-reference)  
 16. [Authenticated query API](#16-authenticated-query-api)  
 17. [Machine-layer audit (Stage 8)](#17-machine-layer-audit-stage-8)  
+18. [Capability layer (Stage 9)](#18-capability-layer-stage-9)  
 
 ---
 
@@ -740,6 +741,7 @@ Whenever the website content changes:
 - [ ] Add **password protection** (cPanel Directory Privacy, HTTP basic auth, or reverse-proxy auth) on the admin URL  
 - [ ] Do not commit API keys to git; use Settings UI or server env  
 - [ ] Treat the **query API token** like a password (`BKBS_API_TOKEN` / Settings). `/api/*` is not public. Origin `/llms.txt` stays anonymous.  
+- [ ] Leave the **capability layer** off unless you want host endpoints. When on, `/ask`, MCP, and A2A use that same token. The agent card has no claim text.  
 - [ ] Publish only **approved** entities  
 - [ ] Keep PHP/Python and packages reasonably up to date  
 
@@ -785,6 +787,7 @@ Whenever the website content changes:
 | Background long scans | Async worker | Runs in request (use moderate max pages) | Request-scoped |
 | Origin audit findings (Stage 8) | Scan page, above stats | Scan page, above stats | Dashboard last-scan card |
 | JSON-LD `wp_head` inject | Copy snippet into theme `<head>` | Copy snippet into theme `<head>` | Checkbox, **default off** |
+| Capability layer (Stage 9) | Site checkbox, **default off** | Site checkbox, **default off** | Machine-layers checkbox, **default off** |
 | Claim backfill (Stage 2) | CLI | CLI | Admin Tools / WP-CLI |
 
 All products produce the **same style of public machine files** for AI agents (`llms.txt`, `graph.json`, schema.org, …).
@@ -803,6 +806,7 @@ Run these from a **clone root** after `pip install -r requirements.txt` (Python 
 | **Stage 2** | `python scripts/verify_exports_via_resolve.py --edition all` | Backfill + real resolve match goldens |
 | **Stage 7** | `pytest tests/test_stage7.py -q` · `php php/scripts/verify_stage7.php` | Auth query API; `as_of` uses `approved_at` |
 | **Stage 8** | `python scripts/stage8_contract_check.py` · `php php/scripts/verify_stage8.php` | Origin findings catalog identical in all three editions; TDMRep detect-only |
+| **Stage 9** | `python scripts/stage9_contract_check.py` | Optional agent card, MCP, and `/ask`; off by default; approved claims only |
 
 ```bash
 pytest -q
@@ -812,6 +816,7 @@ python scripts/verify_exports_via_resolve.py --edition all
 php php/scripts/verify_stage7.php
 python scripts/stage8_contract_check.py
 php php/scripts/verify_stage8.php
+python scripts/stage9_contract_check.py
 ```
 
 **PHP notes:** Stage 0/2 PHP steps need the `php` CLI. Stage 2 PHP via-resolve needs **`pdo_sqlite`**. Without them, local checks may skip PHP portions; CI and the PHP harness image still enforce them.
@@ -935,7 +940,7 @@ Stage 7 exposes **approved** entity snapshots and the claim ledger over JSON. It
 | PHP Host | `GET index.php?r=api/entities/{id}&as_of=` | `GET index.php?r=api/entities/{id}/claims` | Same headers. Token on Settings (generated at install). |
 | WordPress | `GET /wp-json/mbkbs/v1/entities/{id}?as_of=` | `GET /wp-json/mbkbs/v1/entities/{id}/claims` | Logged-in admin (`manage_options`) or bearer token from Settings. |
 
-`as_of` is an ISO-8601 timestamp. Resolve uses **`approved_at`** on approved claims (set on every approve). Unauthenticated `/api/entities` is **401**. Published origin files (`/llms.txt`, `graph.json`, JSON-LD) stay **anonymous HTTP**. No MCP is required.
+`as_of` is an ISO-8601 timestamp. Resolve uses **`approved_at`** on approved claims (set on every approve). Unauthenticated `/api/entities` is **401**. Published origin files (`/llms.txt`, `graph.json`, JSON-LD) stay **anonymous HTTP**. You do not need MCP to read those files. Optional Stage 9 MCP is off until you enable it ([§18](#18-capability-layer-stage-9)).
 
 Python HTML UI (forms) does not need the token. Export ZIP download for operators is `/exports/{id}/download`.
 
@@ -970,7 +975,7 @@ Always five findings, in this order: `jsonld-on-page`, `aipref-robots`, `llms-tx
 | JSON-LD on page | Does origin HTML contain a parseable `<script type="application/ld+json">`? (Yoast/theme/BKBS all count) | Python/PHP: copy the snippet from **Machine layers** into the theme `<head>` (those editions cannot inject). WordPress: Dashboard → Machine layers → **Print JSON-LD in `wp_head` on homepage** — **default off**. After enabling, **Rescan** (cache plugins may delay). |
 | AIPREF / robots | Does origin `robots.txt` contain `Content-Usage` or `AIPREF`? | Detect only. Three site toggles stay **off** until you opt in. Absence is not a defect. |
 | `/llms.txt` | Is the published knowledge file fetchable (not an HTML 404 page)? | **Publish live** |
-| `agent.json` | Honest knowledge index (`name`, `url`, `knowledge`; no stub protocol) | Publish / republish. Stage 9 agent-card is out of scope. |
+| `agent.json` | Honest knowledge index (`name`, `url`, `knowledge`; no stub protocol) | Publish / republish. The Stage 9 agent card is a separate host URL ([§18](#18-capability-layer-stage-9)), not this file. |
 | TDMRep | Is `/.well-known/tdmrep.json` present? | Document-only — see [§17.2](#172-tdm-reservation-protocol-tdmrep) |
 
 The WordPress `wp_head` checkbox is the Stage 4c control. Stage 8 only **documents** it and can hash-jump to `#jsonld_wp_head`. Do not add a second inject path.
@@ -984,6 +989,30 @@ BKBS **detects only the well-known file** (crawlers do not store response header
 During scan, an existing `/.well-known/tdmrep.json` is **pass**; absence is **unknown** (not a fail). Detection never creates the file. Do not confuse TDMRep with AIPREF `Content-Usage` (the 4c opt-in robots line).
 
 There is no TDMRep exporter under `app/exports/`, `php/src/Exports/`, or WordPress `includes/exports/`.
+
+---
+
+## 18. Capability layer (Stage 9)
+
+Three layers, in order. Skipping a later layer does not change the earlier ones.
+
+1. **Knowledge files** (always). Publish writes `/llms.txt`, `graph.json`, schema.org JSON-LD, and `/.well-known/agent.json`. `agent.json` is a knowledge index. It is not an agent card. These files stay anonymous HTTP.
+2. **Optional HTML inject.** Copy the JSON-LD snippet into the theme, or on WordPress tick **Print JSON-LD in `wp_head`**. Default off.
+3. **Optional capability endpoint.** A host-side agent that reads **approved** claims only. Default off. It is not written into the publish folder, and it does not read `/llms.txt` to answer.
+
+Turn it on per site (Python and PHP: site settings checkbox. WordPress: Machine layers checkbox). Then:
+
+| Edition | Agent card (no token) | `/ask` | MCP | A2A `message/send` |
+|---------|----------------------|--------|-----|---------------------|
+| Python | `GET /sites/{id}/.well-known/agent-card.json` | `POST /sites/{id}/ask` | `POST /sites/{id}/mcp` | `POST /sites/{id}/a2a` |
+| PHP Host | `GET index.php?r=sites/{id}/.well-known/agent-card.json` | `POST` the same style of route with `/ask` | `/mcp` | `/a2a` |
+| WordPress | `GET /wp-json/mbkbs/v1/agent-card` | `POST /wp-json/mbkbs/v1/ask` | `POST /wp-json/mbkbs/v1/mcp` | `POST /wp-json/mbkbs/v1/a2a` |
+
+`/ask`, MCP, and A2A use the Stage 7 bearer token (`Authorization: Bearer` or `X-API-Key`). WordPress also accepts a logged-in administrator. The card is public **only while the layer is on**, and it contains no claim text. While the layer is off, every one of these URLs is **404**.
+
+`/ask` body is `{"query":"..."}`. Answers are approved name, description, and properties. Pending claims and operator notes are not searched and not returned. If nothing matches, the result list is empty. The service does not invent a fact.
+
+The agent card `url` is the A2A route on **this app**, not a file on the customer's origin. `message/send` returns a completed task whose text says how many approved facts matched.
 
 ---
 

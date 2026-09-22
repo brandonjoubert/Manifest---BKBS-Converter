@@ -60,6 +60,16 @@
     <label><input type="checkbox" name="aipref_search" value="1" <?= !empty($site['aipref_search']) ? 'checked' : '' ?> /> Allow search indexing (<code>search</code>)</label>
     <label><input type="checkbox" name="aipref_ai_input" value="1" <?= !empty($site['aipref_ai_input']) ? 'checked' : '' ?> /> Allow use as generative AI input (<code>ai-input</code>)</label>
     <label><input type="checkbox" name="aipref_train_ai" value="1" <?= !empty($site['aipref_train_ai']) ? 'checked' : '' ?> /> Allow AI training (<code>train-ai</code>)</label>
+    <p class="muted" style="margin:0.75rem 0 0.35rem"><strong>Capability layer (Stage 9)</strong> — off by default. Does not change <code>agent.json</code> or other published knowledge files.</p>
+    <label><input type="checkbox" name="capability_enabled" value="1" <?= !empty($site['capability_enabled']) ? 'checked' : '' ?> /> Enable host endpoints (agent card, MCP, <code>/ask</code>, A2A). Approved claims only. Bearer token required except for the card.</label>
+    <?php if (!empty($site['capability_enabled'])): ?>
+      <ul class="muted" style="font-size:.85rem">
+        <li><code><?= h(url('sites/' . $site['id'] . '/.well-known/agent-card.json')) ?></code> (public when on)</li>
+        <li><code>POST <?= h(url('sites/' . $site['id'] . '/ask')) ?></code></li>
+        <li><code>POST <?= h(url('sites/' . $site['id'] . '/mcp')) ?></code></li>
+        <li><code>POST <?= h(url('sites/' . $site['id'] . '/a2a')) ?></code></li>
+      </ul>
+    <?php endif; ?>
     <button class="btn btn-primary" type="submit">Save</button>
   </form>
 </div>

@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS sites (
   aipref_search INTEGER DEFAULT 0,
   aipref_ai_input INTEGER DEFAULT 0,
   aipref_train_ai INTEGER DEFAULT 0,
+  capability_enabled INTEGER DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -107,6 +108,7 @@ SQL);
         $this->ensureColumn('sites', 'aipref_search', 'aipref_search INTEGER DEFAULT 0');
         $this->ensureColumn('sites', 'aipref_ai_input', 'aipref_ai_input INTEGER DEFAULT 0');
         $this->ensureColumn('sites', 'aipref_train_ai', 'aipref_train_ai INTEGER DEFAULT 0');
+        $this->ensureColumn('sites', 'capability_enabled', 'capability_enabled INTEGER DEFAULT 0');
         // Stage 6: clear attribute columns when claims exist for the entity.
         $this->pdo->exec(
             "UPDATE entities SET name = '', description = NULL, properties = '{}', relationships = '[]', evidence = '[]'

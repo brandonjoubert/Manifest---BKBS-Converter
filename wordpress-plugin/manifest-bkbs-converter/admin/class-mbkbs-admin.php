@@ -118,6 +118,7 @@ final class MBKBS_Admin
         $aipref_search = MBKBS_Database::get_setting('aipref.search', '0') === '1';
         $aipref_ai_input = MBKBS_Database::get_setting('aipref.ai_input', '0') === '1';
         $aipref_train_ai = MBKBS_Database::get_setting('aipref.train_ai', '0') === '1';
+        $capability_enabled = MBKBS_Database::get_setting('capability.enabled', '0') === '1';
         $robots_preview = MBKBS_Export_Robots::block(MBKBS_Export_Robots::site_from_settings());
         $home = untrailingslashit(home_url('/'));
         $live_urls = [
@@ -249,6 +250,7 @@ final class MBKBS_Admin
         $aipref_search = MBKBS_Database::get_setting('aipref.search', '0') === '1';
         $aipref_ai_input = MBKBS_Database::get_setting('aipref.ai_input', '0') === '1';
         $aipref_train_ai = MBKBS_Database::get_setting('aipref.train_ai', '0') === '1';
+        $capability_enabled = MBKBS_Database::get_setting('capability.enabled', '0') === '1';
         $api_token = MBKBS_Query_API::ensure_token();
         include MBKBS_PLUGIN_DIR . 'admin/views/settings.php';
     }
@@ -277,6 +279,7 @@ final class MBKBS_Admin
         MBKBS_Database::set_setting('aipref.search', isset($_POST['aipref_search']) ? '1' : '0');
         MBKBS_Database::set_setting('aipref.ai_input', isset($_POST['aipref_ai_input']) ? '1' : '0');
         MBKBS_Database::set_setting('aipref.train_ai', isset($_POST['aipref_train_ai']) ? '1' : '0');
+        MBKBS_Database::set_setting('capability.enabled', isset($_POST['capability_enabled']) ? '1' : '0');
         $dest = sanitize_text_field(wp_unslash((string) ($_POST['redirect_page'] ?? 'mbkbs')));
         if (!in_array($dest, ['mbkbs', 'mbkbs-settings'], true)) {
             $dest = 'mbkbs';

@@ -1,0 +1,20 @@
+{
+  "description": "Stage 9 optional capability layer. Knowledge index stays agent.json. Card, MCP, and /ask are host-side and off by default.",
+  "card_keys": [
+    "protocolVersion",
+    "name",
+    "description",
+    "url",
+    "version",
+    "capabilities",
+    "defaultInputModes",
+    "defaultOutputModes",
+    "skills",
+    "securitySchemes",
+    "security"
+  ],
+  "protocolVersion": "0.3.0",
+  "skill_id": "search-approved-facts",
+  "mcp_tools": ["search_approved", "list_approved"],
+  "publish_must_not_contain": "agent-card.json"
+}

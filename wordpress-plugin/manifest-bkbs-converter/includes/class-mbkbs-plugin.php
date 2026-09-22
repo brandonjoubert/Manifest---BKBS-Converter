@@ -22,6 +22,7 @@ final class MBKBS_Plugin
         add_action('wp_head', [MBKBS_Publisher::class, 'maybe_print_jsonld'], 20);
         add_filter('robots_txt', [MBKBS_Publisher::class, 'filter_robots_txt'], 10, 2);
         add_action('rest_api_init', [MBKBS_Query_API::class, 'register']);
+        add_action('rest_api_init', [MBKBS_Capability::class, 'register']);
 
         if (is_admin()) {
             require_once MBKBS_PLUGIN_DIR . 'admin/class-mbkbs-admin.php';

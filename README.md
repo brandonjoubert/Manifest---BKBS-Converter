@@ -213,4 +213,4 @@ Claim Ledger **Stage 0–2** are in-tree (baselines, claims table, backfill + du
 
 - Publish/export production knowledge only after **human approval**.  
 - Never commit secrets (`.env`, API keys, `php/config.php`, WP credentials).  
-- Emerging agent protocols are stubbed where useful (`agent.json`) for future extension.
+- `/.well-known/agent.json` is a knowledge index, not an A2A card. The Stage 9 capability layer is optional and off by default.

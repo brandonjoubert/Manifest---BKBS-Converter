@@ -243,6 +243,8 @@ $sites = is_array($sites ?? null) ? $sites : [];
       <p><label><input type="checkbox" name="aipref_search" value="1" <?php checked(!empty($aipref_search)); ?> /> <?php esc_html_e('Allow search indexing (search)', 'manifest-bkbs'); ?></label></p>
       <p><label><input type="checkbox" name="aipref_ai_input" value="1" <?php checked(!empty($aipref_ai_input)); ?> /> <?php esc_html_e('Allow use as generative AI input (ai-input)', 'manifest-bkbs'); ?></label></p>
       <p><label><input type="checkbox" name="aipref_train_ai" value="1" <?php checked(!empty($aipref_train_ai)); ?> /> <?php esc_html_e('Allow AI training (train-ai)', 'manifest-bkbs'); ?></label></p>
+      <p class="mbkbs-muted"><?php esc_html_e('Capability layer (Stage 9) — off by default. Does not change agent.json or other published knowledge files.', 'manifest-bkbs'); ?></p>
+      <p><label><input type="checkbox" name="capability_enabled" value="1" <?php checked(!empty($capability_enabled)); ?> /> <?php esc_html_e('Enable host endpoints (agent card, MCP, /ask, A2A). Approved claims only.', 'manifest-bkbs'); ?></label></p>
       <p><button class="button" type="submit"><?php esc_html_e('Save machine-layer settings', 'manifest-bkbs'); ?></button></p>
     </form>
     <p class="mbkbs-muted"><?php esc_html_e('Robots merge preview (always includes # END BKBS):', 'manifest-bkbs'); ?></p>

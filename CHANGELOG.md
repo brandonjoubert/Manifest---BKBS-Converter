@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claim Ledger Stage 9** (optional capability layer, all three editions)
+  - Off by default. Published knowledge files, including `/.well-known/agent.json`, stay unchanged when the layer is off
+  - When on: A2A agent card, `POST /ask`, MCP (`search_approved`, `list_approved`), and A2A `message/send`
+  - Answers come from the public resolver only (approved claims). Pending claims and operator notes are not returned
+  - The card is host-side. It is not written into the publish root
+  - Bearer token required except for the card. WordPress also accepts an administrator session
+  - Tests: `tests/test_stage9.py`, `php/scripts/verify_stage9.php`, `php/scripts/verify_stage9_wp.php`, `scripts/stage9_contract_check.py`
 - **Claim Ledger Stage 8** (crawler origin audit, all three editions)
   - After merge, scan jobs persist five findings (`jsonld-on-page`, `aipref-robots`, `llms-txt`, `agent-json`, `tdmrep`) and render them **above** raw stats
   - Job status `completed-with-warnings` when crawl succeeded but a high-severity origin check failed (missing JSON-LD or `/llms.txt`; dishonest `agent.json` stub). First unpublished scan is expected to warn

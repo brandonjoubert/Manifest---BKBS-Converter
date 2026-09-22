@@ -5,7 +5,7 @@
 
 **Generated:** 2026-07-28  
 **Updated:** 2026-09-15  
-**Status:** Stage 0–8 complete (writers, adapters, review UI, public-web artifacts, envelope-only attributes, authenticated query API, crawler origin audit). Next: Stage 9 capability layer. /autoplan B2 applied 2026-08-18.
+**Status:** Stage 0–9 complete (writers, adapters, review UI, public-web artifacts, envelope-only attributes, authenticated query API, crawler origin audit, optional capability layer). /autoplan B2 applied 2026-08-18.
 
 ---
 
@@ -350,10 +350,10 @@ Knowledge files stay the default; this stage is only if the **site itself become
 4. Never require MCP to consume `/llms.txt` or JSON-LD; anonymous HTTP remains the interoperability baseline.
 
 ### EXIT
-- [ ] Knowledge files unchanged for operators who skip Stage 9
-- [ ] Agent Card (if shipped) validates against A2A card schema; no stub protocol
-- [ ] MCP/NLWeb (if shipped) returns only approved/resolved facts
-- [ ] INSTALL documents three layers: knowledge files → optional HTML inject → optional capability endpoint
+- [x] Knowledge files unchanged for operators who skip Stage 9 (flag default off; publish path does not write `agent-card.json`; `agent.json` builder unchanged)
+- [x] Agent Card validates against A2A card fields (name, description, version, url, skills, bearer auth). `message/send` is a real handler. No stub protocol on `agent.json`
+- [x] MCP and `/ask` return only approved/resolved facts
+- [x] INSTALL §18 documents three layers: knowledge files → optional HTML inject → optional capability endpoint
 
 ### ROLLBACK
 - Delete Agent Card / MCP routes; leave knowledge publish intact
@@ -434,6 +434,9 @@ python scripts/stage8_contract_check.py
 php php/scripts/verify_stage8.php
 php php/scripts/verify_stage8_wp.php
 
+# Stage 9: capability layer (all three editions)
+python scripts/stage9_contract_check.py
+
 # Any stage: smoke
 curl -s http://127.0.0.1:8765/health
 ```
@@ -456,9 +459,9 @@ curl -s http://127.0.0.1:8765/health
 
 ## Next Action
 
-**Stages 0–8 complete** (writers, public-set, adapters, claim review UI, public-web artifacts, envelope-only attributes, authenticated query API, crawler origin audit).  
+**Stages 0–9 complete** (writers, public-set, adapters, claim review UI, public-web artifacts, envelope-only attributes, authenticated query API, crawler origin audit, optional capability layer).
 
-Next: **Stage 9** capability layer (MCP / A2A / NLWeb). Still gated.
+Stage 9 ships off by default. There is no further staged ledger work in this plan.
 
 ---
 

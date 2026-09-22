@@ -375,6 +375,8 @@ BKBS does **not** generate TDMRep (`/.well-known/tdmrep.json`). The scan may det
 | **schema/organization.jsonld** | schema.org LocalBusiness / Organisation structured data |
 | **schema/services.jsonld** | schema.org Service (and related) entries |
 | **.well-known/agent.json** | Knowledge index (pointers to llms.txt, graph.json, JSON-LD). Not an A2A agent card. |
+
+The optional capability layer (site setting, off by default) adds a host-side agent card, MCP, and `/ask`. It answers from approved claims only and does not change the files in this package. See INSTALL §18.
 | **robots.txt.suggestion** | Guidance for crawler permissioning |
 | **sitemap.xml.suggestion** | Suggested URLs for discovery |
 | **README.md** | Deploy notes for your web team |

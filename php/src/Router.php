@@ -26,6 +26,10 @@ match (true) {
             str_starts_with($route, 'sites/') && str_ends_with($route, '/scan') && $method === 'POST' => $this->scan($this->idFrom($route, 1)),
             str_starts_with($route, 'sites/') && str_ends_with($route, '/publish') && $method === 'POST' => $this->publish($this->idFrom($route, 1)),
             str_starts_with($route, 'sites/') && str_ends_with($route, '/settings') && $method === 'POST' => $this->siteSettings($this->idFrom($route, 1)),
+            str_starts_with($route, 'sites/') && str_ends_with($route, '/.well-known/agent-card.json') && $method === 'GET' => $this->capabilityRoute($this->idFrom($route, 1), 'card'),
+            str_starts_with($route, 'sites/') && str_ends_with($route, '/ask') && $method === 'POST' => $this->capabilityRoute($this->idFrom($route, 1), 'ask'),
+            str_starts_with($route, 'sites/') && str_ends_with($route, '/mcp') && $method === 'POST' => $this->capabilityRoute($this->idFrom($route, 1), 'mcp'),
+            str_starts_with($route, 'sites/') && str_ends_with($route, '/a2a') && $method === 'POST' => $this->capabilityRoute($this->idFrom($route, 1), 'a2a'),
             str_starts_with($route, 'sites/') && str_ends_with($route, '/delete') && $method === 'POST' => $this->siteDelete($this->idFrom($route, 1)),
             str_starts_with($route, 'sites/') && !str_contains(substr($route, 6), '/') && $method === 'GET' => $this->siteDetail($this->idFrom($route, 1)),
             str_starts_with($route, 'sites/') && str_ends_with($route, '/bulk-review') && $method === 'GET' => $this->bulkReview($this->idFrom($route, 1)),
@@ -194,7 +198,7 @@ match (true) {
             $base = 'https://' . $base;
         }
         $st = bkbs_db()->pdo()->prepare(
-            'UPDATE sites SET name=?, base_url=?, max_pages=?, crawl_delay_ms=?, publish_root=?, auto_publish=?, aipref_search=?, aipref_ai_input=?, aipref_train_ai=? WHERE id=?'
+            'UPDATE sites SET name=?, base_url=?, max_pages=?, crawl_delay_ms=?, publish_root=?, auto_publish=?, aipref_search=?, aipref_ai_input=?, aipref_train_ai=?, capability_enabled=? WHERE id=?'
         );
         $st->execute([
             trim($_POST['name'] ?? $site['name']),
@@ -206,6 +210,7 @@ match (true) {
             isset($_POST['aipref_search']) ? 1 : 0,
             isset($_POST['aipref_ai_input']) ? 1 : 0,
             isset($_POST['aipref_train_ai']) ? 1 : 0,
+            isset($_POST['capability_enabled']) ? 1 : 0,
             $id,
         ]);
         flash_set('ok', 'Settings saved');
@@ -840,6 +845,51 @@ match (true) {
             flash_set('err', $e->getMessage());
         }
         redirect(url('settings'));
+    }
+
+    private function capabilityRoute(string $id, string $kind): void
+    {
+        $st = bkbs_db()->pdo()->prepare('SELECT * FROM sites WHERE id = ?');
+        $st->execute([$id]);
+        $site = $st->fetch();
+        if (!$site || !Capability::enabled($site)) {
+            bkbs_json_error(404, 'Not found');
+        }
+        if ($kind !== 'card') {
+            bkbs_require_api_auth();
+        }
+        $entities = Resolver::resolveSite(bkbs_db()->pdo(), $id, false);
+        $endpoint = $this->absoluteAppUrl('sites/' . $id . '/a2a');
+        if ($kind === 'card') {
+            bkbs_json(Capability::agentCard((string) $site['name'], $endpoint));
+        }
+        $raw = file_get_contents('php://input') ?: '';
+        $decoded = null;
+        if ($raw !== '') {
+            $parsed = json_decode($raw, true);
+            $decoded = is_array($parsed) ? $parsed : null;
+        } else {
+            $decoded = [];
+        }
+        if ($kind === 'ask') {
+            $query = is_array($decoded) && array_key_exists('query', $decoded) && is_string($decoded['query'])
+                ? $decoded['query']
+                : null;
+            $out = Capability::answerAsk($entities, $query, (string) $site['base_url']);
+            bkbs_json($out['body'], $out['status']);
+        }
+        $out = $kind === 'mcp'
+            ? Capability::answerMcp($entities, $decoded)
+            : Capability::answerA2a($entities, $decoded);
+        bkbs_json($out['body'], $out['status']);
+    }
+
+    private function absoluteAppUrl(string $path): string
+    {
+        $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        $scheme = $https ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        return $scheme . '://' . $host . url($path);
     }
 
     /** @return array<string,mixed> */

@@ -58,6 +58,8 @@ class Site(Base):
     aipref_search: Mapped[bool] = mapped_column(Boolean, default=False)
     aipref_ai_input: Mapped[bool] = mapped_column(Boolean, default=False)
     aipref_train_ai: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Stage 9: host-side MCP / A2A /ask. Off leaves knowledge files unchanged.
+    capability_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
