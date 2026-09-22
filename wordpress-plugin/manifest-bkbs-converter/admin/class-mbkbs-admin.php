@@ -57,11 +57,13 @@ final class MBKBS_Admin
         add_submenu_page('mbkbs', __('Bulk review', 'manifest-bkbs'), __('Bulk review', 'manifest-bkbs'), 'manage_options', 'mbkbs-bulk-review', [$this, 'page_bulk_review']);
         add_submenu_page('mbkbs', __('Settings', 'manifest-bkbs'), __('Settings', 'manifest-bkbs'), 'manage_options', 'mbkbs-settings', [$this, 'page_settings']);
         add_submenu_page('mbkbs', __('Tools', 'manifest-bkbs'), __('Tools', 'manifest-bkbs'), 'manage_options', 'mbkbs-tools', [$this, 'page_tools']);
+        add_submenu_page('mbkbs', __('Scan', 'manifest-bkbs'), __('Scan', 'manifest-bkbs'), 'manage_options', 'mbkbs-scan', [$this, 'page_scan']);
     }
 
     public function hide_internal_pages(): void
     {
         remove_submenu_page('mbkbs', 'mbkbs-bulk-review');
+        remove_submenu_page('mbkbs', 'mbkbs-scan');
     }
 
     public function page_tools(): void
@@ -126,7 +128,49 @@ final class MBKBS_Admin
             ['services.jsonld', $home . '/schema/services.jsonld'],
             ['agent.json', $home . '/.well-known/agent.json'],
         ];
+        $last_scans = [];
+        $jobs_table = MBKBS_Database::scan_jobs_table();
+        foreach ($sites as $s) {
+            $job = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT * FROM {$jobs_table} WHERE site_id = %s ORDER BY created_at DESC LIMIT 1",
+                    $s['id']
+                ),
+                ARRAY_A
+            );
+            if (is_array($job)) {
+                $last_scans[(string) $s['id']] = $job;
+            }
+        }
         include MBKBS_PLUGIN_DIR . 'admin/views/dashboard.php';
+    }
+
+    public function page_scan(): void
+    {
+        global $wpdb;
+        $job_id = isset($_GET['job']) ? sanitize_text_field(wp_unslash((string) $_GET['job'])) : '';
+        $job = null;
+        $site = null;
+        $stats = [];
+        $findings = [];
+        if ($job_id !== '') {
+            $job = $wpdb->get_row(
+                $wpdb->prepare('SELECT * FROM ' . MBKBS_Database::scan_jobs_table() . ' WHERE id = %s', $job_id),
+                ARRAY_A
+            );
+            if (is_array($job)) {
+                $site = $wpdb->get_row(
+                    $wpdb->prepare('SELECT * FROM ' . MBKBS_Database::sites_table() . ' WHERE id = %s', $job['site_id']),
+                    ARRAY_A
+                );
+                if (!empty($job['stats_json'])) {
+                    $decoded = json_decode((string) $job['stats_json'], true);
+                    $stats = is_array($decoded) ? $decoded : [];
+                }
+                $findings = is_array($stats['findings'] ?? null) ? $stats['findings'] : [];
+            }
+        }
+        include MBKBS_PLUGIN_DIR . 'admin/views/scan.php';
     }
 
     public function page_entities(): void
@@ -278,16 +322,36 @@ final class MBKBS_Admin
             $this->redirect('mbkbs', 'Site not found.', true);
         }
 
+        $job_id = MBKBS_Database::uuid();
+        $now = current_time('mysql', true);
+        $jobs = MBKBS_Database::scan_jobs_table();
+        $wpdb->insert(
+            $jobs,
+            [
+                'id' => $job_id,
+                'site_id' => $site_id,
+                'status' => 'running',
+                'pages_fetched' => 0,
+                'entities_found' => 0,
+                'created_at' => $now,
+            ],
+            ['%s', '%s', '%s', '%d', '%d', '%s']
+        );
+
         try {
             @set_time_limit(300);
             $crawler = new MBKBS_Crawler();
             $pages = $crawler->crawl($site['base_url'], (int) $site['max_pages'], (int) $site['crawl_delay_ms']);
             $extractor = new MBKBS_Extractor();
             $found = $extractor->extract_heuristic($pages);
+            $heuristic_count = count($found);
             $llm = MBKBS_LLM::from_settings();
+            $llm_count = 0;
             if ($llm) {
                 try {
-                    $found = array_merge($found, $extractor->extract_with_llm($llm, $pages, $site['base_url']));
+                    $llm_ents = $extractor->extract_with_llm($llm, $pages, $site['base_url']);
+                    $llm_count = count($llm_ents);
+                    $found = array_merge($found, $llm_ents);
                 } catch (Throwable $e) {
                     // keep heuristic
                 }
@@ -298,16 +362,78 @@ final class MBKBS_Admin
                     $n++;
                 }
             }
-            $this->redirect(
-                'mbkbs-entities',
-                sprintf(
-                    /* translators: 1: pages, 2: entities */
-                    __('Scan complete: %1$d pages, %2$d entities touched. Review pending items, edit if needed, then approve.', 'manifest-bkbs'),
-                    count($pages),
-                    $n
-                )
+            try {
+                $pages_json_ld = [];
+                foreach ($pages as $p) {
+                    $pages_json_ld[] = [$p['url'], $p['json_ld'] ?? []];
+                }
+                $probes = MBKBS_Scan_Audit::probe_origin((string) $site['base_url'], null, [$crawler, 'request']);
+                $findings = MBKBS_Scan_Audit::evaluate_findings([
+                    'base_url' => (string) $site['base_url'],
+                    'site_id' => $site_id,
+                    'pages_json_ld' => $pages_json_ld,
+                    'html_ok_count' => count($pages),
+                    'robots' => $probes['robots'] ?? null,
+                    'llms_txt' => $probes['llms_txt'] ?? null,
+                    'agent_json' => $probes['agent_json'] ?? null,
+                    'tdmrep' => $probes['tdmrep'] ?? null,
+                    'wp_jsonld_inject' => MBKBS_Database::get_setting('jsonld.wp_head', '0') === '1',
+                ]);
+                $origin_stats = MBKBS_Scan_Audit::probes_as_stats($probes);
+            } catch (Throwable $e) {
+                $findings = MBKBS_Scan_Audit::unknown_findings($e->getMessage());
+                $origin_stats = [];
+            }
+            $status = MBKBS_Scan_Audit::has_high_severity_fail($findings) ? 'completed-with-warnings' : 'completed';
+            $stats = [
+                'crawl' => ['ok' => count($pages), 'max_pages' => (int) $site['max_pages']],
+                'heuristic_count' => $heuristic_count,
+                'llm_count' => $llm_count,
+                'touched' => $n,
+                'findings' => $findings,
+                'origin_probes' => $origin_stats,
+            ];
+            $wpdb->update(
+                $jobs,
+                [
+                    'status' => $status,
+                    'pages_fetched' => count($pages),
+                    'entities_found' => $n,
+                    'stats_json' => wp_json_encode($stats),
+                    'finished_at' => current_time('mysql', true),
+                ],
+                ['id' => $job_id]
             );
+            $msg = sprintf(
+                /* translators: 1: pages, 2: entities */
+                __('Scan complete: %1$d pages, %2$d entities touched. Review pending items, edit if needed, then approve.', 'manifest-bkbs'),
+                count($pages),
+                $n
+            );
+            $need = 0;
+            foreach ($findings as $f) {
+                if (($f['status'] ?? '') === 'fail') {
+                    $need++;
+                }
+            }
+            if ($need > 0) {
+                $msg .= ' ' . sprintf(
+                    /* translators: %d: number of findings */
+                    _n('%d finding needs attention.', '%d findings need attention.', $need, 'manifest-bkbs'),
+                    $need
+                );
+            }
+            $this->redirect('mbkbs', $msg);
         } catch (Throwable $e) {
+            $wpdb->update(
+                $jobs,
+                [
+                    'status' => 'failed',
+                    'error' => $e->getMessage(),
+                    'finished_at' => current_time('mysql', true),
+                ],
+                ['id' => $job_id]
+            );
             $this->redirect('mbkbs', 'Scan failed: ' . $e->getMessage(), true);
         }
     }

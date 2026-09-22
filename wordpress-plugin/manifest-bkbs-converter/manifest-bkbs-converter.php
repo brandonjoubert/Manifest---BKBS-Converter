@@ -25,13 +25,14 @@ define('MBKBS_VERSION', '0.1.0');
 define('MBKBS_PLUGIN_FILE', __FILE__);
 define('MBKBS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('MBKBS_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('MBKBS_DB_VERSION', '4');
+define('MBKBS_DB_VERSION', '5');
 
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-database.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-backfill.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-diff.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-resolver.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-crawler.php';
+require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-scan-audit.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-extractor.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/class-mbkbs-llm.php';
 require_once MBKBS_PLUGIN_DIR . 'includes/exports/class-mbkbs-export-llms.php';

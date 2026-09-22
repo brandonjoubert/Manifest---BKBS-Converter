@@ -4,6 +4,8 @@ if (!defined('ABSPATH')) {
 }
 $msg = isset($_GET['mbkbs_msg']) ? sanitize_text_field(wp_unslash((string) $_GET['mbkbs_msg'])) : '';
 $err = isset($_GET['mbkbs_err']) ? sanitize_text_field(wp_unslash((string) $_GET['mbkbs_err'])) : '';
+$last_scans = is_array($last_scans ?? null) ? $last_scans : [];
+$sites = is_array($sites ?? null) ? $sites : [];
 ?>
 <div class="wrap mbkbs-wrap">
   <h1><?php esc_html_e('Manifest BKBS Converter', 'manifest-bkbs'); ?> <span class="mbkbs-muted" style="font-size:14px;font-weight:400"><?php esc_html_e('(WordPress edition)', 'manifest-bkbs'); ?></span></h1>
@@ -16,6 +18,76 @@ $err = isset($_GET['mbkbs_err']) ? sanitize_text_field(wp_unslash((string) $_GET
     <div class="mbkbs-notice-warn">
       <?php esc_html_e('No LLM configured — scans use limited heuristics.', 'manifest-bkbs'); ?>
       <a href="<?php echo esc_url(admin_url('admin.php?page=mbkbs-settings')); ?>"><?php esc_html_e('Add an API key', 'manifest-bkbs'); ?></a>
+    </div>
+  <?php endif; ?>
+
+  <?php
+    $has_last_scan = false;
+    foreach ($sites as $s) {
+        if (!empty($last_scans[$s['id']])) {
+            $has_last_scan = true;
+            break;
+        }
+    }
+  ?>
+  <?php if ($has_last_scan) : ?>
+    <div class="mbkbs-card" id="last-scan-findings">
+      <h2><?php esc_html_e('Last scan findings', 'manifest-bkbs'); ?></h2>
+      <p class="mbkbs-muted"><?php esc_html_e('Origin audit — these checks do not fail the crawl.', 'manifest-bkbs'); ?></p>
+      <?php foreach ($sites as $s) : ?>
+        <?php
+          $job = $last_scans[$s['id']] ?? null;
+          if (!is_array($job)) {
+              continue;
+          }
+          $job_status = (string) ($job['status'] ?? '');
+          $job_stats = [];
+          if (!empty($job['stats_json'])) {
+              $decoded = json_decode((string) $job['stats_json'], true);
+              $job_stats = is_array($decoded) ? $decoded : [];
+          }
+          $findings = is_array($job_stats['findings'] ?? null) ? $job_stats['findings'] : [];
+        ?>
+        <h3><?php echo esc_html((string) $s['name']); ?></h3>
+        <p>
+          <span class="mbkbs-pill mbkbs-pill-<?php echo esc_attr($job_status); ?>"><?php echo esc_html($job_status); ?></span>
+          <a href="<?php echo esc_url(admin_url('admin.php?page=mbkbs-scan&job=' . rawurlencode((string) $job['id']))); ?>"><?php esc_html_e('Scan details', 'manifest-bkbs'); ?></a>
+          ·
+          <a href="<?php echo esc_url(admin_url('admin.php?page=mbkbs-entities')); ?>"><?php esc_html_e('Review entities', 'manifest-bkbs'); ?></a>
+        </p>
+        <?php if (!empty($job['error'])) : ?>
+          <div class="mbkbs-notice-err"><?php echo esc_html((string) $job['error']); ?></div>
+        <?php endif; ?>
+        <?php if (!empty($findings)) : ?>
+          <ul class="mbkbs-findings">
+            <?php foreach ($findings as $f) : ?>
+              <?php
+                $f_status = (string) ($f['status'] ?? '');
+                $f_sev = (string) ($f['severity'] ?? '');
+                $cta = trim((string) ($f['cta'] ?? ''));
+                $cta_href = trim((string) ($f['cta_href'] ?? ''));
+              ?>
+              <li class="mbkbs-finding mbkbs-finding-<?php echo esc_attr($f_status); ?>">
+                <span class="mbkbs-pill mbkbs-pill-<?php echo esc_attr($f_status); ?>"><?php echo esc_html($f_status); ?></span>
+                <span class="mbkbs-pill mbkbs-pill-sev-<?php echo esc_attr($f_sev); ?>"><?php echo esc_html($f_sev); ?></span>
+                <strong><?php echo esc_html((string) ($f['title'] ?? '')); ?></strong>
+                <p class="mbkbs-muted"><?php echo esc_html((string) ($f['evidence'] ?? '')); ?></p>
+                <?php if ($cta !== '' && $cta_href !== '') : ?>
+                  <p><a class="button button-small" href="<?php echo esc_url($cta_href); ?>"><?php echo esc_html($cta); ?></a></p>
+                <?php elseif ($cta !== '') : ?>
+                  <p class="mbkbs-muted"><?php echo esc_html($cta); ?></p>
+                <?php endif; ?>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
+        <?php if (!empty($job_stats)) : ?>
+          <details>
+            <summary><?php esc_html_e('Raw stats', 'manifest-bkbs'); ?></summary>
+            <pre class="mbkbs-muted" style="white-space:pre-wrap;font-size:12px"><?php echo esc_html((string) wp_json_encode($job_stats, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)); ?></pre>
+          </details>
+        <?php endif; ?>
+      <?php endforeach; ?>
     </div>
   <?php endif; ?>
 
@@ -163,7 +235,7 @@ $err = isset($_GET['mbkbs_err']) ? sanitize_text_field(wp_unslash((string) $_GET
       <input type="hidden" name="redirect_page" value="mbkbs" />
       <p>
         <label>
-          <input type="checkbox" name="jsonld_wp_head" value="1" <?php checked(!empty($jsonld_inject)); ?> />
+          <input type="checkbox" id="jsonld_wp_head" name="jsonld_wp_head" value="1" <?php checked(!empty($jsonld_inject)); ?> />
           <?php esc_html_e('Print JSON-LD in wp_head on homepage', 'manifest-bkbs'); ?>
         </label>
       </p>
