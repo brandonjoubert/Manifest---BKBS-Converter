@@ -73,7 +73,6 @@ def check_python(contract: dict) -> None:
             llms_txt=llms_ok,
             agent_json=Probe("https://ex.com/.well-known/agent.json", 200, honest),
             tdmrep=Probe("https://ex.com/.well-known/tdmrep.json", 404, ""),
-            edition="python",
         )
         data.update(kwargs)
         return AuditInput(**data)

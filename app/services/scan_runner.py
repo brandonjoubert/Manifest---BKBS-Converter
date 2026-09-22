@@ -128,7 +128,6 @@ def run_scan_job(job_id: str) -> None:
                     llms_txt=probes.llms_txt,
                     agent_json=probes.agent_json,
                     tdmrep=probes.tdmrep,
-                    edition="python",
                 )
             )
             origin_stats = probes.as_stats()

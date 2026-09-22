@@ -53,7 +53,6 @@ def _inp(**kwargs) -> AuditInput:
         llms_txt=None,
         agent_json=None,
         tdmrep=None,
-        edition="python",
     )
     data.update(kwargs)
     return AuditInput(**data)

@@ -91,8 +91,6 @@ class AuditInput:
     llms_txt: Probe | None
     agent_json: Probe | None
     tdmrep: Probe | None = None
-    edition: str = "python"  # python | php | wordpress
-    wp_jsonld_inject: bool | None = None  # WP only
 
 
 def has_high_severity_fail(findings: list[dict[str, Any]]) -> bool:
@@ -214,18 +212,6 @@ def _is_transport_fail(probe: Probe) -> bool:
     return probe.status_code is None and bool(probe.error) and probe.error != SKIP_ERROR
 
 
-def _href_machine_layers(inp: AuditInput) -> str:
-    if inp.edition == "wordpress":
-        return "admin.php?page=mbkbs#machine-layers"
-    return f"/sites/{inp.site_id}#machine-layers"
-
-
-def _href_publish(inp: AuditInput) -> str:
-    if inp.edition == "wordpress":
-        return "admin.php?page=mbkbs"
-    return f"/sites/{inp.site_id}"
-
-
 def _jsonld_type(blocks: list) -> str:
     for block in blocks:
         if not isinstance(block, dict):
@@ -271,19 +257,14 @@ def _eval_jsonld(inp: AuditInput) -> dict[str, Any]:
             ),
             status="pass",
         )
-    cta = "Copy JSON-LD snippet"
-    href = _href_machine_layers(inp)
-    if inp.edition == "wordpress" and not inp.wp_jsonld_inject:
-        cta = "Enable WP homepage inject"
-        href = "admin.php?page=mbkbs#jsonld_wp_head"
     return _finding(
         "jsonld-on-page",
         severity="high",
         title="Origin HTML has no JSON-LD",
         evidence=f"{n} of {ok_pages} pages have JSON-LD. Homepage {homepage}.",
         status="fail",
-        cta=cta,
-        cta_href=href,
+        cta="Copy JSON-LD snippet",
+        cta_href=f"/sites/{inp.site_id}#machine-layers",
     )
 
 
@@ -325,7 +306,7 @@ def _eval_aipref(inp: AuditInput) -> dict[str, Any]:
             evidence=f"{line}; {url} HTTP 200",
             status="pass",
             cta="Origin already has Content-Usage — confirm it matches your toggles",
-            cta_href=_href_machine_layers(inp),
+            cta_href=f"/sites/{inp.site_id}#machine-layers",
         )
     return _finding(
         "aipref-robots",
@@ -334,7 +315,7 @@ def _eval_aipref(inp: AuditInput) -> dict[str, Any]:
         evidence=f"{url} HTTP 200, no Content-Usage / AIPREF line",
         status="fail",
         cta="Leave AIPREF off unless intended",
-        cta_href=_href_machine_layers(inp),
+        cta_href=f"/sites/{inp.site_id}#machine-layers",
     )
 
 
@@ -361,7 +342,7 @@ def _eval_llms(inp: AuditInput) -> dict[str, Any]:
             evidence=f"{url} HTTP {probe.status_code}, {probe.bytes} bytes",
             status="fail",
             cta="Publish live",
-            cta_href=_href_publish(inp),
+            cta_href=f"/sites/{inp.site_id}",
         )
     stripped = body.lstrip()
     # 3. Markdown/BKBS body
@@ -373,18 +354,7 @@ def _eval_llms(inp: AuditInput) -> dict[str, Any]:
             evidence=f"{url} HTTP 200, {probe.bytes} bytes",
             status="pass",
         )
-    # 4. HTML (even if the word "llms" appears) → fail; 5. else fail
-    low = stripped[:15].lower()
-    if low.startswith("<!doctype") or low.startswith("<html"):
-        return _finding(
-            "llms-txt",
-            severity="high",
-            title="Origin /llms.txt is not fetchable",
-            evidence=f"{url} HTTP {probe.status_code}, {probe.bytes} bytes",
-            status="fail",
-            cta="Publish live",
-            cta_href=_href_publish(inp),
-        )
+    # HTML (even if the word "llms" appears) and any other 200 body → fail
     return _finding(
         "llms-txt",
         severity="high",
@@ -392,7 +362,7 @@ def _eval_llms(inp: AuditInput) -> dict[str, Any]:
         evidence=f"{url} HTTP {probe.status_code}, {probe.bytes} bytes",
         status="fail",
         cta="Publish live",
-        cta_href=_href_publish(inp),
+        cta_href=f"/sites/{inp.site_id}",
     )
 
 
@@ -417,7 +387,7 @@ def _eval_agent(inp: AuditInput) -> dict[str, Any]:
             evidence=f"{url} HTTP {probe.status_code}, {probe.bytes} bytes",
             status="fail",
             cta="Publish live",
-            cta_href=_href_publish(inp),
+            cta_href=f"/sites/{inp.site_id}",
         )
     try:
         data = json.loads(body)
@@ -429,7 +399,7 @@ def _eval_agent(inp: AuditInput) -> dict[str, Any]:
             evidence=f"{url} HTTP {probe.status_code}, {probe.bytes} bytes",
             status="fail",
             cta="Publish live",
-            cta_href=_href_publish(inp),
+            cta_href=f"/sites/{inp.site_id}",
         )
     if not isinstance(data, dict):
         return _finding(
@@ -439,7 +409,7 @@ def _eval_agent(inp: AuditInput) -> dict[str, Any]:
             evidence=f"{url} HTTP {probe.status_code}, {probe.bytes} bytes",
             status="fail",
             cta="Publish live",
-            cta_href=_href_publish(inp),
+            cta_href=f"/sites/{inp.site_id}",
         )
     forbidden = [k for k in AGENT_FORBIDDEN if k in data]
     if forbidden:
@@ -450,7 +420,7 @@ def _eval_agent(inp: AuditInput) -> dict[str, Any]:
             evidence=f"{url} HTTP 200; forbidden keys: {', '.join(forbidden)}",
             status="fail",
             cta="Republish — stub protocol detected",
-            cta_href=_href_machine_layers(inp),
+            cta_href=f"/sites/{inp.site_id}#machine-layers",
         )
     if all(k in data for k in AGENT_REQUIRED):
         return _finding(
@@ -467,7 +437,7 @@ def _eval_agent(inp: AuditInput) -> dict[str, Any]:
         evidence=f"{url} HTTP {probe.status_code}, {probe.bytes} bytes",
         status="fail",
         cta="Publish live",
-        cta_href=_href_publish(inp),
+        cta_href=f"/sites/{inp.site_id}",
     )
 
 
